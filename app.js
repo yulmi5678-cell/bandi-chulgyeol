@@ -1,6 +1,6 @@
 import * as S from './store.js';
-import * as L from './logic.js';
-import { buildXlsx } from './xlsx.js';
+import * as L from './logic.js?v=4';
+import { buildXlsx } from './xlsx.js?v=4';
 const $root = document.getElementById('root'), TODAY = () => L.today();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const PC = { 정상: ['#eff6ff', '#2f67e0', '#16a34a'], 소급: ['#fff8e8', '#d98a1f', '#d98a1f'], 송영: ['#ecfeff', '#0e7490', '#0e7490'], 인정: ['#f5f0ff', '#6d3fc4', '#6d3fc4'] };
@@ -17,6 +17,30 @@ function soft() { if (hasFocusInput()) { later = true; return; } render(); }
 document.addEventListener('focusout', () => setTimeout(() => { if (later && !hasFocusInput()) { later = false; render(); } }, 80));
 
 const settle = () => new Promise(r => { document.activeElement?.blur?.(); setTimeout(r, 120); });
+function timeField(k, cls, label, v) {
+  const [H, M] = (v || '16:00').split(':').map(Number), pm = H >= 12, h = H % 12 || 12, mm = String(M).padStart(2, '0'), std = mm === '00' || mm === '30';
+  return `<div class="field tf" data-k="${k}"><span>${label}</span><input type="hidden" ${cls} value="${esc(v)}"><div class="t3"><select class="ap" aria-label="${label} 오전 오후" style="color:${pm ? '#d98a1f' : '#2f67e0'}"><option value="0" style="color:#2f67e0" ${pm ? '' : 'selected'}>오전</option><option value="12" style="color:#d98a1f" ${pm ? 'selected' : ''}>오후</option></select><select class="th" aria-label="${label} 시">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}" ${i + 1 === h ? 'selected' : ''}>${i + 1}시</option>`).join('')}</select><select class="tm" aria-label="${label} 분"><option value="00" ${mm === '00' ? 'selected' : ''}>00분</option><option value="30" ${mm === '30' ? 'selected' : ''}>30분</option>${std ? '' : `<option value="${mm}" selected>${mm}분</option>`}<option value="c">직접 입력</option></select></div><input class="tc" inputmode="numeric" maxlength="2" aria-label="분 직접 입력" placeholder="분 직접 입력 (예: 40)" style="display:none;margin-top:6px"></div>`;
+}
+function setHours(f, h) {
+  const max = +f.dataset.max, v = Math.min(h, max), w = Math.floor(v), hh = f.querySelector('.hh'), mm = f.querySelector('.mm');
+  hh.value = w; mm.options[1].disabled = w === max; mm.value = v - w > 0 ? '30' : '0'; f.querySelector('.ht').value = `${w}:${mm.value === '30' ? '30' : '00'}`;
+}
+function bindTimes(root) {
+  root.querySelectorAll('.tf').forEach(f => {
+    const hid = f.querySelector('input[type=hidden]'), ap = f.querySelector('.ap'), th = f.querySelector('.th'), tm = f.querySelector('.tm'), tc = f.querySelector('.tc');
+    const up = () => {
+      ap.style.color = ap.value === '12' ? '#d98a1f' : '#2f67e0';
+      const m = tm.value === 'c' ? tc.value.trim() : tm.value, bad = !/^\d{1,2}$/.test(m) || +m > 59;
+      hid.value = bad ? '' : `${String(+th.value % 12 + +ap.value).padStart(2, '0')}:${m.padStart(2, '0')}`;
+      const box = f.closest('.tbox'); if (!box) return;
+      const h = L.calcHours(box.querySelector('[data-k=s] input[type=hidden]').value, box.querySelector('[data-k=e] input[type=hidden]').value), hf = box.querySelector('.hf');
+      if (h != null && hf) setHours(hf, h);
+    };
+    ap.onchange = up; th.onchange = up; tc.onchange = up;
+    tm.onchange = () => { tc.style.display = tm.value === 'c' ? 'block' : 'none'; if (tm.value === 'c') tc.focus(); up(); };
+  });
+}
+const sn = (sid, name) => `<span style="color:${L.colorOf(A.students.find(s => s.id === sid), sid)};font-weight:700">${esc(name)}</span>`;
 function hoursField(id, h, max, label = '기록 시간') {
   const w = Math.floor(h), m = h - w > 0 ? 30 : 0;
   return `<div class="field hf" data-max="${max}" id="${id}"><span>${esc(label)}</span><div class="two"><select class="hh" aria-label="시간">${Array.from({ length: max + 1 }, (_, i) => `<option value="${i}" ${i === w ? 'selected' : ''}>${i}시간</option>`).join('')}</select><select class="mm" aria-label="분"><option value="0" ${!m ? 'selected' : ''}>00분</option><option value="30" ${m ? 'selected' : ''} ${w === max ? 'disabled' : ''}>30분</option></select></div><input class="ht" inputmode="text" aria-label="직접 입력" placeholder="직접 입력 (예: 2:30)" value="${w}:${m ? '30' : '00'}"></div>`;
@@ -52,10 +76,10 @@ function mainScreen() {
   const log = L.monthLog(recs(), m, A.me.id).filter(r => A.filter === '전체' || r.sid === A.filter), tot = L.totals(L.monthLog(recs(), m, A.me.id));
   const wk = Array.from({ length: 6 }, (_, i) => L.add(A.mon, i));
   const banners = `${todayLeft ? `<button class="ban" id="goToday" style="background:#2f67e0;color:#fff">오늘 출석 ${todayLeft}건이 남았어요</button>` : `<div class="ban" style="background:var(--sky);color:var(--navy)">오늘 남은 출석이 없어요 ✓</div>`}${pastN ? `<button class="ban" id="goPast" style="background:#fff8e8;color:#a96a12">지난 날짜에 안 누른 출석 ${pastN}건이 있어요 · ${L.md(past[0].date)} 보기</button>` : ''}`;
-  const left = `${banners}<div class="h">${L.label(d)}까지 누적</div><div class="cg">${names.length ? names.map(s => { const c = L.cumulative(recs(), s.id, d), lim = s.limit || 66; return `<div class="cc"><div class="cn">${esc(s.name)}</div><div class="cv">${L.fmt(c)}</div><div class="cs">남은 ${L.fmt(Math.max(lim - c, 0))} / ${L.fmt(lim)}</div></div>`; }).join('') : '<div class="cc" style="grid-column:1/-1"><div class="meta">아직 학생이 없어요. 메뉴의 시간표와 학생 관리에서 추가해 주세요.</div></div>'}</div>
+  const left = `${banners}<div class="h">${L.label(d)}까지 누적</div><div class="cg">${names.length ? names.map(s => { const c = L.cumulative(recs(), s.id, d), lim = s.limit || 66; return `<div class="cc"><div class="cn" style="color:${L.colorOf(s, s.id)}">${esc(s.name)}</div><div class="cv">${L.fmt(c)}</div><div class="cs">남은 ${L.fmt(Math.max(lim - c, 0))} / ${L.fmt(lim)}</div></div>`; }).join('') : '<div class="cc" style="grid-column:1/-1"><div class="meta">아직 학생이 없어요. 메뉴의 시간표와 학생 관리에서 추가해 주세요.</div></div>'}</div>
   <div class="nav"><button id="pv" aria-label="이전 주">‹</button><div>${L.md(wk[0])} ~ ${L.md(wk[5])}</div><button id="nx" aria-label="다음 주">›</button></div><div class="dd">${wk.map(dateCell).join('')}</div>
   ${L.HOLIDAYS[d] ? `<div class="ok" style="background:#fdecea;color:#c62828">${esc(L.HOLIDAYS[d])} 공휴일이에요. 운영한 날이면 출석을 누르면 돼요.</div>` : ''}
-  <div class="chips">${['전체', ...names.map(s => s.id)].map(id => `<button class="fl ${id === A.filter ? 'on' : ''}" data-id="${esc(id)}">${esc(id === '전체' ? '전체' : names.find(n => n.id === id).name)}</button>`).join('')}</div>
+  <div class="chips">${['전체', ...names.map(s => s.id)].map(id => `<button class="fl ${id === A.filter ? 'on' : ''}" data-id="${esc(id)}" style="${id !== '전체' && id !== A.filter ? `color:${L.colorOf(names.find(n => n.id === id), id)}` : ''}">${esc(id === '전체' ? '전체' : names.find(n => n.id === id).name)}</button>`).join('')}</div>
   ${view.length ? view.map(card).join('') : `<div class="meta" style="margin:0 2px 10px">이 날은 일정이 없어요.</div>`}
   ${A.adding ? addForm(names) : ''}<button id="addBtn" class="wide lite">+ 일정 추가</button>`;
   const right = `<div class="h">${+m.slice(5)}월 인정결제 (학생별 월 1회)</div>${names.length ? names.map(s => ackCard(s, m)).join('') : ''}
@@ -66,17 +90,17 @@ function mainScreen() {
 function card(c) {
   const k = PC[c.pay] || PC.정상, tot = L.cumulative(recs(), c.sid, A.cur), open = A.open[c.id], cs = c.done ? `color:${k[1]}` : '';
   if (c.removed) return `<div class="card" data-c="${esc(c.id)}"><div class="nm" style="color:#94a3b8">${esc(c.sname)}</div><div class="meta">이 날 일정을 뺐어요.</div><button class="restore more">일정 되돌리기</button></div>`;
-  return `<div class="card ${c.done ? 'done' : ''}" data-c="${esc(c.id)}" ${c.done ? `style="border:2px solid ${k[1]}"` : ''}><div class="rw"><div style="min-width:0"><div class="nm" style="${cs}">${c.done ? '✓ ' : ''}${esc(c.sname)}</div><div class="meta">${esc(c.s)}~${esc(c.e)} · 당일 ${L.fmt(c.h)}<br>누적 <b>${L.fmt(tot)}</b> · <span style="color:${k[1]}">${c.pay}결제</span></div></div><button class="chk ${c.done ? '' : 'p'}">${c.done ? '취소' : '출석'}</button></div>${c.pay === '소급' && !open && !c.reason ? '<div class="err" style="margin:8px 0 0">소급 사유를 골라 주세요.</div>' : ''}<button class="more tog">${open ? '접기 ▲' : '결제구분 · 수정 ▼'}</button>${open ? editPanel(c) : ''}</div>`;
+  return `<div class="card ${c.done ? 'done' : ''}" data-c="${esc(c.id)}" ${c.done ? `style="border:2px solid ${k[1]}"` : ''}><div class="rw"><div style="min-width:0"><div class="nm" style="color:${L.colorOf(A.students.find(s => s.id === c.sid), c.sid)}">${c.done ? '✓ ' : ''}${esc(c.sname)}</div><div class="meta">${esc(c.s)}~${esc(c.e)} · ${esc(c.staff || A.me.name)} · 당일 ${L.fmt(c.h)}<br>누적 <b>${L.fmt(tot)}</b> · <span style="color:${k[1]}">${c.pay}결제</span></div></div><button class="chk ${c.done ? '' : 'p'}">${c.done ? '취소' : '출석'}</button></div>${c.pay === '소급' && !open && !c.reason ? '<div class="err" style="margin:8px 0 0">소급 사유를 골라 주세요.</div>' : ''}<button class="more tog">${open ? '접기 ▲' : '결제구분 · 수정 ▼'}</button>${open ? editPanel(c) : ''}</div>`;
 }
 function editPanel(c) {
   const e = A.edit[c.id] || {}, st = A.teachers.filter(t => t.active).map(t => t.name), staff = c.staff || A.me.name;
   if (!st.includes(staff)) st.push(staff);
   return `<div class="pays">${L.PAYS.map(p => { const q = PC[p], on = p === c.pay; return `<button class="py" data-p="${p}" style="${on ? `background:${q[0]};color:${q[1]};border:2px solid ${q[1]}` : ''}">${p}</button>`; }).join('')}</div>
   ${c.pay === '소급' ? `<label class="field">소급 사유<select class="rs"><option value="">사유 선택</option>${L.REASONS.map(r => `<option ${r === c.reason ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label>${c.reason === '기타' ? `<label class="field">기타 사유<input class="etc" value="${esc(c.etc)}" placeholder="사유 입력"></label>` : ''}` : ''}
-  <label class="field">제공인력<select class="stf">${st.map(n => `<option ${n === staff ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label><div class="two"><label class="field">시작 시간<input type="time" class="ts" value="${esc(c.s)}"></label><label class="field">종료 시간<input type="time" class="te" value="${esc(c.e)}"></label></div>${hoursField('h_' + c.id.replace(/\W/g, '_'), c.h, 10)}${e.err ? `<p class="err">${esc(e.err)}</p>` : ''}<button class="wide p sv">그날만 저장</button>${c.custom ? '<button class="wide del">이 일정 지우기</button>' : '<button class="wide skip">이 날 일정 빼기 (결석 등)</button>'}`;
+  <label class="field">제공인력<select class="stf">${st.map(n => `<option ${n === staff ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label><div class="tbox">${timeField('s', 'class="ts"', '시작 시간', c.s)}${timeField('e', 'class="te"', '종료 시간', c.e)}${hoursField('h_' + c.id.replace(/\W/g, '_'), c.h, 10)}</div>${e.err ? `<p class="err">${esc(e.err)}</p>` : ''}<button class="wide p sv">그날만 저장</button>${c.custom ? '<button class="wide del">이 일정 지우기</button>' : '<button class="wide skip">이 날 일정 빼기 (결석 등)</button>'}`;
 }
 function addForm(names) {
-  return `<div class="card"><label class="field">학생<select id="nS">${names.map(n => `<option value="${esc(n.id)}">${esc(n.name)}</option>`).join('')}</select></label><div class="two"><label class="field">시작 시간<input type="time" id="nA" value="16:00"></label><label class="field">종료 시간<input type="time" id="nB" value="19:00"></label></div>${hoursField('nH', 3, 10)}${A.addErr ? `<p class="err">${esc(A.addErr)}</p>` : ''}<button id="nOk" class="wide p" style="margin:0">일정 넣기</button></div>`;
+  return `<div class="card"><label class="field">학생<select id="nS">${names.map(n => `<option value="${esc(n.id)}">${esc(n.name)}</option>`).join('')}</select></label><div class="tbox">${timeField('s', 'id="nA"', '시작 시간', '16:00')}${timeField('e', 'id="nB"', '종료 시간', '19:00')}${hoursField('nH', 3, 10)}</div>${A.addErr ? `<p class="err">${esc(A.addErr)}</p>` : ''}<button id="nOk" class="wide p" style="margin:0">일정 넣기</button></div>`;
 }
 function ackCard(s, m) {
   const id = L.ackId(m, s.id), r = A.rec.get(id), f = A.ack[id];
@@ -86,7 +110,7 @@ function ackCard(s, m) {
 }
 function logRow(r) {
   const w = Math.floor(r.h), mm = r.h - w > 0, hol = L.HOLIDAYS[r.date], wd = L.weekday(r.date), max = r.pay === '인정' ? 16 : 10;
-  return `<div class="log" data-r="${esc(r.id)}"><div class="lh"><span style="color:${hol ? '#c62828' : wd === 6 ? '#2f67e0' : 'inherit'}">${L.md(r.date)} (${L.WD[wd]})</span> ${esc(r.sname)} · ${esc(r.staff || '')}</div><div class="meta">당일 ${L.fmt(r.h)} · 누적 <b>${L.fmt(L.cumulative(recs(), r.sid, r.date))}</b> · <span style="color:${PC[r.pay][1]};font-weight:600">${r.pay}결제</span>${r.pay === '소급' && r.reason ? ` · ${esc(r.reason === '기타' ? r.etc : r.reason)}` : ''}</div>${r.pay === '인정' ? '' : `<div class="lg"><select class="lp" aria-label="결제구분">${L.PAYS.map(p => `<option value="${p}" ${p === r.pay ? 'selected' : ''}>${p}결제</option>`).join('')}</select><select class="lh2" aria-label="기록 시간">${Array.from({ length: 2 * max }, (_, i) => (i + 1) / 2).map(h => `<option value="${h}" ${h === r.h ? 'selected' : ''}>${L.fmt(h)}</option>`).join('')}</select><button class="lc" aria-label="출석 취소">✕</button></div>`}</div>`;
+  return `<div class="log" data-r="${esc(r.id)}"><div class="lh"><span style="color:${hol ? '#c62828' : wd === 6 ? '#2f67e0' : 'inherit'}">${L.md(r.date)} (${L.WD[wd]})</span> ${sn(r.sid, r.sname)} · ${esc(r.staff || '')}</div><div class="meta">당일 ${L.fmt(r.h)} · 누적 <b>${L.fmt(L.cumulative(recs(), r.sid, r.date))}</b> · <span style="color:${PC[r.pay][1]};font-weight:600">${r.pay}결제</span>${r.pay === '소급' && r.reason ? ` · ${esc(r.reason === '기타' ? r.etc : r.reason)}` : ''}</div>${r.pay === '인정' ? '' : `<div class="lg"><select class="lp" aria-label="결제구분">${L.PAYS.map(p => `<option value="${p}" ${p === r.pay ? 'selected' : ''}>${p}결제</option>`).join('')}</select><select class="lh2" aria-label="기록 시간">${Array.from({ length: 2 * max }, (_, i) => (i + 1) / 2).map(h => `<option value="${h}" ${h === r.h ? 'selected' : ''}>${L.fmt(h)}</option>`).join('')}</select><button class="lc" aria-label="출석 취소">✕</button></div>`}</div>`;
 }
 function saveCard(c, patch) {
   const { saved, ...base } = c; const staff = base.staff || A.me.name;
@@ -103,7 +127,7 @@ function bindMain(r) {
   const gp = r.querySelector('#goPast'); if (gp) gp.onclick = () => go(L.pendingDates(TODAY(), A.me.id, A.students, recs(), [L.prevMonth(L.monthOf(TODAY()))])[0].date);
   const mp = r.querySelector('#mp'); mp.onchange = () => { if (mp.value) { mp.blur(); go(mp.value + '-01'); } };
   r.querySelector('#addBtn').onclick = () => { A.adding = !A.adding; A.addErr = ''; render(); };
-  bindHours(r);
+  bindHours(r); bindTimes(r);
   const ok = r.querySelector('#nOk'); if (ok) ok.onclick = () => {
     const s = r.querySelector('#nA').value, e = r.querySelector('#nB').value, h = readHours(r.querySelector('#nH')), st = A.students.find(x => x.id === r.querySelector('#nS').value);
     if (!st) { A.addErr = '학생을 먼저 추가해 주세요.'; return render(); }
@@ -157,7 +181,7 @@ function menuScreen() {
 }
 const go = s => { A.screen = s; A.msg = ''; window.scrollTo(0, 0); render(); };
 function downloadXlsx(tid, name) {
-  const m = L.monthOf(A.cur), blob = buildXlsx(`${m} 출결부`, L.exportRows(recs(), m, tid), [12, 6, 12, 12, 10, 10, 13, 13, 11, 34]), a = document.createElement('a');
+  const m = L.monthOf(A.cur), blob = buildXlsx(`${m} 출결부`, L.exportRows(recs(), m, tid, name), [12, 6, 12, 12, 10, 10, 13, 13, 11, 34]), a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = `반디출결부_${name}_${m}.xlsx`; a.rel = "noopener"; document.body.appendChild(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 30000);
 }
 const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -181,7 +205,7 @@ function scheduleScreen() {
   const my = myStudents(); if (!my.find(s => s.id === A.mgr)) { A.mgr = my[0]?.id || ''; A.draft = null; }
   const st = my.find(s => s.id === A.mgr);
   if (st && !A.draft) A.draft = st.versions[st.versions.length - 1].days.map(d => ({ ...d }));
-  return `${backBtn('시간표와 학생 관리')}${A.sErr ? `<p class="err">${esc(A.sErr)}</p>` : ''}${A.sMsg ? `<div class="ok">${esc(A.sMsg)}</div>` : ''}<div class="card"><label class="field">새 학생 이름<input id="ns" placeholder="이름 입력" maxlength="20"></label><button id="as" class="wide lite" style="margin:0">학생 추가</button></div>${st ? `<div class="chips">${my.map(s => `<button class="ms ${s.id === A.mgr ? 'on' : ''}" data-id="${esc(s.id)}">${esc(s.name)}</button>`).join('')}</div><div class="card"><label class="field">적용 시작 날짜<input id="fr" type="date" value="${A.from}"></label>${A.draft.map((d, i) => `<div class="row" data-i="${i}"><div class="rh"><b style="font-size:18px;${i === 5 ? 'color:#2f67e0' : ''}">${L.SD[i]}요일</b><button class="tg ${d.on ? 'on' : ''}" style="min-width:92px">${d.on ? '일정 있음' : '일정 없음'}</button></div>${d.on ? `<div class="two" style="margin-top:8px"><label class="field">시작 시간<input type="time" class="s" value="${d.s}"></label><label class="field">종료 시간<input type="time" class="e" value="${d.e}"></label></div>${hoursField('d' + i, d.h, 10)}` : ''}</div>`).join('')}<label class="field" style="margin-top:10px">월 총시간<input id="lim" inputmode="numeric" value="${st.limit || 66}"></label><button id="sv" class="wide p" style="margin:0">시간표 저장</button></div><div class="card"><div class="h" style="margin-top:0">${esc(st.name)} 이용 상태</div><div class="meta" style="margin-bottom:8px">${st.endDate ? `이용 종료 날짜: ${st.endDate}` : '이용 중'}</div>${st.endDate ? '<button id="res" class="wide lite" style="margin:0">이용 재개</button>' : `<label class="field">이용 종료 날짜<input id="ed" type="date" value="${L.lastDay(L.monthOf(TODAY()))}"></label><button id="ef" class="wide" style="margin:0">이용 종료</button>`}</div>` : '<div class="meta">맡은 학생이 없어요. 위에서 학생을 추가해 주세요.</div>'}`;
+  return `${backBtn('시간표와 학생 관리')}${A.sErr ? `<p class="err">${esc(A.sErr)}</p>` : ''}${A.sMsg ? `<div class="ok">${esc(A.sMsg)}</div>` : ''}<div class="card"><label class="field">새 학생 이름<input id="ns" placeholder="이름 입력" maxlength="20"></label><button id="as" class="wide lite" style="margin:0">학생 추가</button></div>${st ? `<div class="chips">${my.map(s => `<button class="ms ${s.id === A.mgr ? 'on' : ''}" data-id="${esc(s.id)}">${esc(s.name)}</button>`).join('')}</div><div class="card"><label class="field">적용 시작 날짜<input id="fr" type="date" value="${A.from}"></label>${A.draft.map((d, i) => `<div class="row tbox" data-i="${i}"><div class="rh"><b style="font-size:18px;${i === 5 ? 'color:#2f67e0' : ''}">${L.SD[i]}요일</b><button class="tg ${d.on ? 'on' : ''}" style="min-width:92px">${d.on ? '일정 있음' : '일정 없음'}</button></div>${d.on ? `<div style="margin-top:8px">${timeField('s', 'class="s"', '시작 시간', d.s)}${timeField('e', 'class="e"', '종료 시간', d.e)}${hoursField('d' + i, d.h, 10)}</div>` : ''}</div>`).join('')}<label class="field" style="margin-top:10px">제공인력<select id="sf">${[...new Set([...A.teachers.filter(t => t.active).map(t => t.name), st.staff || A.me.name])].map(n => `<option ${n === (st.staff || A.me.name) ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label><div class="field"><span>학생 글자색</span><div class="sws">${L.COLORS.map(c => `<button type="button" class="sw" data-c="${c}" aria-label="글자색 선택" style="background:${c};${L.colorOf(st, st.id) === c ? 'outline:3px solid #93c5fd;outline-offset:2px' : ''}"></button>`).join('')}</div></div><label class="field">월 총시간<input id="lim" inputmode="numeric" value="${st.limit || 66}"></label><button id="sv" class="wide p" style="margin:0">시간표 저장</button></div><div class="card"><div class="h" style="margin-top:0">${esc(st.name)} 이용 상태</div><div class="meta" style="margin-bottom:8px">${st.endDate ? `이용 종료 날짜: ${st.endDate}` : '이용 중'}</div>${st.endDate ? '<button id="res" class="wide lite" style="margin:0">이용 재개</button>' : `<label class="field">이용 종료 날짜<input id="ed" type="date" value="${L.lastDay(L.monthOf(TODAY()))}"></label><button id="ef" class="wide" style="margin:0">이용 종료</button>`}</div>` : '<div class="meta">맡은 학생이 없어요. 위에서 학생을 추가해 주세요.</div>'}`;
 }
 function bindSchedule(r) {
   r.querySelector('#bk').onclick = () => go('menu');
@@ -191,14 +215,15 @@ function bindSchedule(r) {
     if (n.length < 2) { A.sErr = '학생 이름을 입력해 주세요.'; return render(); }
     if (myStudents().some(s => s.name === n)) { A.sErr = '이미 있는 이름이에요.'; return render(); }
     const id = S.newStudentId(), t = TODAY();
-    A.students = [...A.students.filter(s => s.id !== id), { id, name: n, ownerTid: A.me.id, ownership: [{ from: '2000-01-01', tid: A.me.id, tname: A.me.name }], versions: [{ from: t, days: L.SD.map(() => ({ on: false, s: '16:00', e: '19:00', h: 3 })) }], endDate: '', limit: 66 }];
+    A.students = [...A.students.filter(s => s.id !== id), { id, name: n, ownerTid: A.me.id, ownership: [{ from: '2000-01-01', tid: A.me.id, tname: A.me.name }], versions: [{ from: t, days: L.SD.map(() => ({ on: false, s: '16:00', e: '19:00', h: 3 })) }], endDate: '', limit: 66, staff: A.me.name, color: L.COLORS.find(c => !myStudents().some(s => L.colorOf(s, s.id) === c)) || L.COLORS[0] }];
     A.mgr = id; A.draft = null; A.from = t; A.sMsg = `${n} 학생을 추가했어요. 요일을 정하고 저장해 주세요.`;
     S.saveStudent(A.students.find(s => s.id === id)).catch(fail); render();
   };
   r.querySelectorAll('.ms').forEach(b => b.onclick = () => { A.mgr = b.dataset.id; A.draft = null; A.sErr = ''; A.sMsg = ''; render(); });
   const fr = r.querySelector('#fr'); if (!fr) return; fr.onchange = () => A.from = fr.value;
   const collect = () => r.querySelectorAll('.row').forEach(el => { const d = A.draft[+el.dataset.i]; if (d.on) { d.s = el.querySelector('.s').value; d.e = el.querySelector('.e').value; const h = readHours(el.querySelector('.hf')); if (h.h) d.h = h.h; else d._bad = h.error; } });
-  bindHours(r);
+  bindHours(r); bindTimes(r);
+  r.querySelectorAll('.sw').forEach(b => b.onclick = () => { collect(); const st = A.students.find(s => s.id === A.mgr), ns = { ...st, color: b.dataset.c }; A.students = A.students.map(s => s.id === st.id ? ns : s); S.saveStudent(ns).catch(fail); render(); });
   r.querySelectorAll('.tg').forEach(b => b.onclick = () => { collect(); const d = A.draft[+b.closest('.row').dataset.i]; d.on = !d.on; delete d._bad; A.sMsg = ''; render(); });
   r.querySelector('#sv').onclick = () => {
     A.draft.forEach(d => delete d._bad); collect(); A.sErr = ''; A.sMsg = '';
@@ -206,7 +231,7 @@ function bindSchedule(r) {
     if (!A.from) A.sErr = '적용 시작 날짜를 골라 주세요.'; else if (bad) A.sErr = bad._bad; else if (A.draft.some(d => d.on && (!d.s || !d.e || d.s >= d.e))) A.sErr = '종료 시간은 시작 시간보다 늦어야 해요.'; else if (!(lim > 0 && lim < 1000)) A.sErr = '월 총시간을 숫자로 입력해 주세요.';
     if (A.sErr) return render();
     const v = (st.versions || []).filter(x => x.from < A.from); v.push({ from: A.from, days: A.draft.map(d => ({ on: d.on, s: d.s, e: d.e, h: d.h })) });
-    const ns = { ...st, versions: v, limit: lim }; A.students = A.students.map(s => s.id === st.id ? ns : s);
+    const ns = { ...st, versions: v, limit: lim, staff: r.querySelector('#sf').value }; A.students = A.students.map(s => s.id === st.id ? ns : s);
     A.sMsg = `저장했어요. ${L.label(A.from)}부터 새 시간표가 나오고 지난 기록은 그대로예요.`; document.activeElement?.blur?.(); S.saveStudent(ns).catch(fail); render();
   };
   const res = r.querySelector('#res'); if (res) res.onclick = () => { const st = A.students.find(s => s.id === A.mgr); S.saveStudent({ ...st, endDate: '' }).catch(fail); A.sMsg = `${st.name} 학생 이용을 다시 시작했어요.`; A.sErr = ''; render(); };
@@ -215,7 +240,7 @@ function bindSchedule(r) {
 function peersScreen() {
   const ot = A.teachers.filter(t => t.id !== A.me.id); if (!ot.find(t => t.id === A.peer)) A.peer = ot[0]?.id || '';
   const m = L.monthOf(A.cur), log = A.peer ? L.monthLog(recs(), m, A.peer) : [], tot = L.totals(log);
-  return `${backBtn('동료 출결부 보기')}<div class="ok">읽기 전용이에요. 고칠 수 없어요.</div>${ot.length ? `<div class="chips">${ot.map(t => `<button class="pc ${t.id === A.peer ? 'on' : ''}" data-id="${t.id}">${esc(t.name)}</button>`).join('')}</div><label class="field">달<input id="pm" type="month" value="${m}"></label><div class="sum">${L.ALL_PAYS.map(p => `<div class="box"><div class="lb">${p}결제</div><div class="v" style="color:${PC[p][2]}">${L.fmt(tot[p])}</div></div>`).join('')}</div><div class="card">${log.length ? log.map(r => `<div class="log"><div class="lh">${L.md(r.date)} (${L.WD[L.weekday(r.date)]}) ${esc(r.sname)} · ${esc(r.staff || '')}</div><div class="meta">당일 ${L.fmt(r.h)} · 누적 <b>${L.fmt(L.cumulative(recs(), r.sid, r.date))}</b> · <span style="color:${PC[r.pay][1]}">${r.pay}결제</span></div></div>`).join('') : '<div class="meta">이 달의 기록이 없어요.</div>'}</div><button id="px" class="wide">이 출결부 엑셀 받기</button>` : '<div class="meta">아직 다른 선생님이 없어요.</div>'}`;
+  return `${backBtn('동료 출결부 보기')}<div class="ok">읽기 전용이에요. 고칠 수 없어요.</div>${ot.length ? `<div class="chips">${ot.map(t => `<button class="pc ${t.id === A.peer ? 'on' : ''}" data-id="${t.id}">${esc(t.name)}</button>`).join('')}</div><div class="h">${esc(ot.find(t => t.id === A.peer).name)} 선생님 출결부</div><div class="meta" style="margin:-4px 2px 10px">${m.slice(0, 4)}년 ${+m.slice(5)}월 · 읽기 전용</div><label class="field">달<input id="pm" type="month" value="${m}"></label><div class="sum">${L.ALL_PAYS.map(p => `<div class="box"><div class="lb">${p}결제</div><div class="v" style="color:${PC[p][2]}">${L.fmt(tot[p])}</div></div>`).join('')}</div><div class="card">${log.length ? log.map(r => `<div class="log"><div class="lh">${L.md(r.date)} (${L.WD[L.weekday(r.date)]}) ${sn(r.sid, r.sname)} · ${esc(r.staff || '')}</div><div class="meta">당일 ${L.fmt(r.h)} · 누적 <b>${L.fmt(L.cumulative(recs(), r.sid, r.date))}</b> · <span style="color:${PC[r.pay][1]}">${r.pay}결제</span></div></div>`).join('') : '<div class="meta">이 달의 기록이 없어요.</div>'}</div><button id="px" class="wide">이 출결부 엑셀 받기</button>` : '<div class="meta">아직 다른 선생님이 없어요.</div>'}`;
 }
 function bindPeers(r) {
   r.querySelector('#bk').onclick = () => go('menu');
@@ -238,7 +263,7 @@ function bindHandover(r) {
     const list = (A.hS === '전체' ? A.students.filter(x => L.ownerAt(x, '9999-12-31') === A.hF) : A.students.filter(x => x.id === A.hS)), to = A.teachers.find(x => x.id === A.hT); A.hErr = ''; A.hMsg = '';
     if (!list.length) A.hErr = '넘길 학생이 없어요.'; else if (A.hF === A.hT) A.hErr = '받는 선생님을 다르게 골라 주세요.'; else if (!A.hD) A.hErr = '인계 날짜를 골라 주세요.';
     if (A.hErr) return render();
-    A.modal = { text: `${list.map(x => x.name).join(', ')} 학생을 ${L.label(A.hD)}부터 ${to.name} 선생님께 넘길까요?`, yes: '인계하기', run: async () => { await Promise.all(list.map(x => { const o = (x.ownership || []).filter(a => a.from < A.hD); o.push({ from: A.hD, tid: to.id, tname: to.name }); return S.saveStudent({ ...x, ownership: o, ownerTid: to.id }); })).then(() => { A.hMsg = '인계했어요.'; A.hS = '전체'; }).catch(fail); render(); } }; render();
+    A.modal = { text: `${list.map(x => x.name).join(', ')} 학생을 ${L.label(A.hD)}부터 ${to.name} 선생님께 넘길까요?`, yes: '인계하기', run: async () => { await Promise.all(list.map(x => { const o = (x.ownership || []).filter(a => a.from < A.hD); o.push({ from: A.hD, tid: to.id, tname: to.name }); return S.saveStudent({ ...x, ownership: o, ownerTid: to.id, staff: to.name }); })).then(() => { A.hMsg = '인계했어요.'; A.hS = '전체'; }).catch(fail); render(); } }; render();
   };
 }
 function teachersScreen() {
@@ -284,7 +309,7 @@ function render() {
   if (A.phase === 'setup' || A.phase === 'auth') { const vals = {}; ['n', 'p', 'c'].forEach(i => { const e = $root.querySelector('#' + i); if (e) vals[i] = e.value; }); $root.innerHTML = authScreen(); Object.entries(vals).forEach(([i, v]) => { const e = $root.querySelector('#' + i); if (e) e.value = v; }); return bindAuth($root); }
   if (A.phase === 'suspended') { $root.innerHTML = suspendedScreen(); $root.querySelector('#so').onclick = () => S.logout(); return; }
   const scr = { main: [mainScreen, bindMain], menu: [menuScreen, bindMenu], schedule: [scheduleScreen, bindSchedule], peers: [peersScreen, bindPeers], password: [passwordScreen, bindPassword], handover: [handoverScreen, bindHandover], teachers: [teachersScreen, bindTeachers] }[A.screen];
-  $root.innerHTML = header() + `<main id="m">${scr[0]()}</main>` + (A.modal ? modalHtml() : '');
+  $root.innerHTML = header() + `<main id="m" class="${A.screen === 'main' ? '' : 'narrow'}">${scr[0]()}</main>` + (A.modal ? modalHtml() : '');
   const main = $root.querySelector('#m'); scr[1](main);
   $root.querySelector('#mb').onclick = () => { A.screen = A.screen === 'main' ? 'menu' : 'main'; A.msg = ''; scrollTo(0, 0); render(); };
   if (A.modal) { $root.querySelector('#mn').onclick = () => { A.modal = null; render(); }; $root.querySelector('#my').onclick = async () => { const f = A.modal.run; A.modal = null; render(); await f?.(); }; }
