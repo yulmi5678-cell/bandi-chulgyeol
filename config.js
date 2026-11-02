@@ -1,9 +1,1 @@
-// 파이어베이스 웹 앱 설정값을 여기에 넣습니다. 이 값은 공개되어도 되며, 실제 보호는 firestore.rules가 합니다.
-export const firebaseConfig = {
-  apiKey: "__API_KEY__",
-  authDomain: "__AUTH_DOMAIN__",
-  projectId: "__PROJECT_ID__",
-  storageBucket: "__STORAGE_BUCKET__",
-  messagingSenderId: "__SENDER_ID__",
-  appId: "__APP_ID__"
-};
+export const firebaseConfig = JSON.parse('{"apiKey":"AIzaSyAHVhYKD6EuTBPtcFU8xV94losZXbkJKQ4","authDomain":"bandi-chulgyeol.firebaseapp.com","projectId":"bandi-chulgyeol","storageBucket":"bandi-chulgyeol.firebasestorage.app","messagingSenderId":"29922667571","appId":"1:29922667571:web:c9f1046ca69475f31bc746"}');
