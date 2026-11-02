@@ -36,6 +36,14 @@ export function planFor(st, date) {
   if (!v) return null; const d = v.days[w - 1];
   return d && d.on ? { s: d.s, e: d.e, h: d.h } : null;
 }
+export const COLORS = ['#2f67e0', '#7c3aed', '#0e7490', '#db2777', '#15803d', '#92400e', '#b91c1c', '#4338ca'];
+export function colorOf(st, id = '') { if (st?.color) return st.color; let n = 0; for (const c of String(id)) n = (n * 31 + c.charCodeAt(0)) % 997; return COLORS[n % COLORS.length]; }
+// 남는 분: 0~15분 내림, 16~30분은 30분, 31~59분은 다음 1시간
+export function calcHours(s, e) {
+  if (!s || !e || s >= e) return null;
+  const t = v => { const [a, b] = v.split(':').map(Number); return a * 60 + b; }, d = t(e) - t(s), w = Math.floor(d / 60), r = d % 60;
+  return Math.max(0.5, r <= 15 ? w : r <= 30 ? w + 0.5 : w + 1);
+}
 export const baseId = (date, sid) => `${date}_${sid}`;
 export const ackId = (month, sid) => `ack_${month}_${sid}`;
 const counted = r => r.done && !r.removed;
@@ -46,7 +54,7 @@ export function cardsFor(date, tid, students, records) {
     if (ownerAt(st, date) !== tid) continue;
     const p = planFor(st, date); if (!p) continue;
     const id = baseId(date, st.id), r = byId.get(id);
-    out.push(r ? { ...r, saved: true } : { id, date, month: monthOf(date), sid: st.id, sname: st.name, tid, s: p.s, e: p.e, h: p.h, pay: '정상', reason: '', etc: '', done: false, saved: false });
+    out.push(r ? { ...r, saved: true } : { id, date, month: monthOf(date), sid: st.id, sname: st.name, tid, staff: st.staff || '', s: p.s, e: p.e, h: p.h, pay: '정상', reason: '', etc: '', done: false, saved: false });
   }
   for (const r of records) if (r.date === date && r.custom && r.tid === tid && !r.id.startsWith('ack_')) out.push({ ...r, saved: true });
   return out;
@@ -59,8 +67,8 @@ export function pendingDates(todayStr, tid, students, records, months) {
 }
 export function totals(list) { const t = { 정상: 0, 소급: 0, 송영: 0, 인정: 0 }; for (const r of list) if (counted(r)) t[r.pay] = (t[r.pay] || 0) + r.h; return t; }
 export function monthLog(records, month, tid) { return records.filter(r => r.month === month && r.tid === tid && counted(r)).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.sname < b.sname ? -1 : 1); }
-export function exportRows(records, month, tid) {
-  const l = monthLog(records, month, tid), rows = [['일자', '요일', '학생명', '제공인력', '시작 시간', '종료 시간', '당일시간', '당월누적', '결제구분', '소급 사유']];
+export function exportRows(records, month, tid, name = '') {
+  const l = monthLog(records, month, tid), rows = [[`${name} 선생님 출결부`, `${month.slice(0, 4)}년 ${+month.slice(5)}월`], ['일자', '요일', '학생명', '제공인력', '시작 시간', '종료 시간', '당일시간', '당월누적', '결제구분', '소급 사유']];
   for (const r of l) rows.push([r.date, WD[weekday(r.date)], r.sname, r.staff || '', r.s || '', r.e || '', fmt(r.h), fmt(cumulative(records, r.sid, r.date)), r.pay + '결제', r.pay === '소급' ? (r.reason === '기타' ? r.etc : r.reason) || '' : '']);
   const t = totals(l); rows.push([]); rows.push(['합계', '', '', '', '', '', fmt(Object.values(t).reduce((a, b) => a + b, 0))]);
   for (const p of ALL_PAYS) rows.push([p + '결제', '', '', '', '', '', fmt(t[p])]);
