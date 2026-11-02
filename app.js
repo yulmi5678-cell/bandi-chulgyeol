@@ -58,7 +58,7 @@ function bindHours(root, onChange) {
 function readHours(f) { const ht = f.querySelector('.ht'), max = +f.dataset.max; return L.parseHours(ht.value, max); }
 
 function header() {
-  return `<header class="top"><div class="brand"><img src="icon-192.png" alt="반디 로고"><div class="tt"><div class="ttl">반디 방과후활동 출결부</div><div class="who">${esc(A.me.name)} 선생님${A.me.boss ? ' · 대표' : ''}</div></div></div><div class="qb"><button id="mb">${A.screen === 'main' ? '메뉴' : '출결부'}</button><span class="qg" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span><button id="qSch" class="qi">시간표·학생 관리</button><button id="qPeer" class="qo">동료 출결부</button><button id="qXl" class="qx">엑셀 다운로드</button><button id="qOut" class="qk">로그아웃</button></div></header>`;
+  return `<header class="top"><div class="brand"><img src="icon-192.png" alt="반디 로고"><div class="tt"><div class="ttl">반디 방과후활동 출결부</div><div class="who">${esc(A.me.name)} 선생님${A.me.boss ? ' · 대표' : ''}</div></div><span class="qm" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span></div><div class="qb"><button id="mb">${A.screen === 'main' ? '메뉴' : '출결부'}</button><span class="qg" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span><button id="qSch" class="qi">시간표·학생 관리</button><button id="qPeer" class="qo">동료 출결부</button><button id="qXl" class="qx">엑셀 다운로드</button><button id="qOut" class="qk">로그아웃</button></div></header>`;
 }
 function dateCell(d) {
   const cards = L.cardsFor(d, A.me.id, A.students, recs()), live = cards.filter(c => !c.removed), ok = live.length && live.every(c => c.done), isT = d === TODAY(), hol = L.HOLIDAYS[d], w = L.weekday(d);
@@ -102,8 +102,8 @@ function mainScreen() {
   </section><section class="col ca">${L.HOLIDAYS[d] ? `<div class="ok" style="background:#fdecea;color:#c62828">${esc(L.HOLIDAYS[d])} 공휴일이에요. 운영한 날이면 출석을 누르면 돼요.</div>` : ''}
   <div class="chips">${['전체', ...names.map(s => s.id)].map(id => `<button class="fl ${id === A.filter ? 'on' : ''}" data-id="${esc(id)}" style="${id !== '전체' ? `background:${L.colorOf(names.find(n => n.id === id), id)};color:#fff;border-color:transparent;${id === A.filter ? 'outline:3px solid #1e293b' : ''}` : ''}">${esc(id === '전체' ? '전체' : names.find(n => n.id === id).name)}</button>`).join('')}</div>
   ${view.length ? view.map(card).join('') : `<div class="meta" style="margin:0 2px 10px">이 날은 일정이 없어요.</div>`}
-  ${A.adding ? addForm(names) : ''}<button id="addBtn" class="wide lite">+ 일정 추가</button><div class="h">${+m.slice(5)}월 인정결제 (학생별 월 1회)</div>${names.map(s => ackCard(s, m)).join('')}`;
-  const right = `<div class="h">${+m.slice(5)}월 학생별 합계</div>${stuTot(names, m)}
+  ${A.adding ? addForm(names) : ''}<button id="addBtn" class="wide lite">+ 일정 추가</button><div class="h">${+m.slice(5)}월 인정결제 (학생별 월 1회)</div>${names.map(s => ackCard(s, m)).join('')}<div class="pcs"><div class="h">${+m.slice(5)}월 학생별 합계</div>${stuTot(names, m)}</div>`;
+  const right = `<div class="mo"><div class="h">${+m.slice(5)}월 학생별 합계</div>${stuTot(names, m)}</div>
   <div class="h">${+m.slice(5)}월 기록</div><div class="field"><input id="mp" type="month" aria-label="달 고르기" value="${m}"></div><div class="mo">${bulkBtns()}</div><div class="card">${log.length ? log.map(logRow).join('') : '<div class="meta">아직 출석한 기록이 없어요.</div>'}</div>`;
   return `<div class="cols t-${A.tab || 'a'}"><section class="col ca">${left}</section><section class="col cb">${right}</section></div>`;
 }
