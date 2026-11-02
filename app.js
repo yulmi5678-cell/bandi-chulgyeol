@@ -5,7 +5,7 @@ const $root = document.getElementById('root'), TODAY = () => L.today();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const PC = { 정상: ['#eff6ff', '#2563eb', '#16a34a'], 소급: ['#fff8e8', '#d98a1f', '#d98a1f'], 송영: ['#ecfeff', '#0e7490', '#0e7490'], 인정: ['#f5f0ff', '#6d3fc4', '#6d3fc4'] };
 const SVG = { cal: '<path d="M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 15l2 2 4-4"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', users: '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 2.5-6 6-6s6 2.500 6 6M16 5a3.500 3.500 0 0 1 0 6.500M18 14.500c2 .7 3 2.600 3 5.500"/>', key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>', file: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 12l6 6M15 12l-6 6"/>', phone: '<rect x="7" y="2.500" width="10" height="19" rx="2"/><path d="M11 18.500h2"/>', swap: '<path d="M4 8h15M15 4l4 4-4 4M20 16H5M9 12l-4 4 4 4"/>', cog: '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.500 2.500-6 6-6 1 0 2 .2 2.800.6"/><circle cx="17.500" cy="17.500" r="2.500"/><path d="M17.500 13v2M17.500 20v2M13 17.500h2M20 17.500h2"/>', out: '<path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M15 8l4 4-4 4M19 12H9"/>' };
-const A = { phase: 'loading', authMode: 'login', err: '', msg: '', busy: false, me: null, teachers: [], students: [], rec: new Map(), months: [], unsub: [], recUnsub: null, screen: 'main', cur: TODAY(), mon: L.mondayOf(TODAY()), filter: '전체', open: {}, edit: {}, adding: false, peer: '', ack: {}, online: true, mgr: '', draft: null, from: TODAY(), sErr: '', sMsg: '', hF: '', hS: '전체', hT: '', hD: TODAY(), hErr: '', hMsg: '', tErr: '', tMsg: '', code: null, modal: null, installEvt: null };
+const A = { phase: 'loading', authMode: 'login', err: '', msg: '', busy: false, me: null, teachers: [], students: [], rec: new Map(), months: [], unsub: [], recUnsub: null, screen: 'main', cur: TODAY(), mon: L.mondayOf(TODAY()), filter: '전체', open: {}, edit: {}, adding: false, ed: null, peer: '', ack: {}, online: true, mgr: '', draft: null, from: TODAY(), sErr: '', sMsg: '', hF: '', hS: '전체', hT: '', hD: TODAY(), hErr: '', hMsg: '', tErr: '', tMsg: '', code: null, modal: null, installEvt: null };
 const recs = () => [...A.rec.values()];
 const toast = m => { const t = document.getElementById('tst'); t.innerHTML = `<div class="toast">${esc(m)}</div>`; setTimeout(() => t.innerHTML = '', 2600); };
 const fail = e => { console.error(e); toast(e?.message && /[가-힣]/.test(e.message) ? e.message : '저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'); };
@@ -61,7 +61,7 @@ function header() {
   return `<header class="top"><div class="brand"><img src="icon-192.png" alt="반디 로고"><div class="tt"><div class="ttl">반디 방과후활동 출결부</div><div class="who">${esc(A.me.name)} 선생님${A.me.boss ? ' · 대표' : ''}</div></div><span class="qm" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span></div><div class="qb"><button id="mb">${A.screen === 'main' ? '메뉴' : '출결부'}</button><span class="qg" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span><button id="qSch" class="qi">시간표·학생 관리</button><button id="qPeer" class="qo">동료 출결부</button><button id="qXl" class="qx">엑셀 다운로드</button><button id="qOut" class="qk">로그아웃</button></div></header>`;
 }
 function dateCell(d) {
-  const cards = L.cardsFor(d, A.me.id, A.students, recs()), live = cards.filter(c => !c.removed), ok = live.length && live.every(c => c.done), isT = d === TODAY(), hol = L.HOLIDAYS[d], w = L.weekday(d);
+  const cards = L.cardsFor(d, A.me.id, A.students, recs()), live = cards.filter(c => !c.removed && (A.filter === '전체' || c.sid === A.filter)), ok = live.length && live.every(c => c.done), isT = d === TODAY(), hol = L.HOLIDAYS[d], w = L.weekday(d);
   const bg = isT ? '#2563eb' : ok ? '#f8fafc' : live.length && !hol ? '#eaf2ff' : '#fff';
   const fg = isT ? '#fff' : hol ? '#c62828' : w === 6 ? '#2563eb' : ok ? '#94a3b8' : live.length ? '#1e3a8a' : '#334155';
   const bd = d === A.cur ? '2.5px solid #1e293b' : isT ? '1px solid #2563eb' : live.length && !ok && !hol ? '1px solid #bfdbfe' : '1px solid #e2e8f0';
@@ -81,7 +81,7 @@ function monthCal(m) {
   const first = L.weekday(m + '-01'), last = L.lastDay(m), cells = [];
   for (let i = 0; i < first; i++) cells.push('<span></span>');
   for (let d = m + '-01'; d <= last; d = L.add(d, 1)) {
-    const live = L.cardsFor(d, A.me.id, A.students, recs()).filter(c => !c.removed), ok = live.length && live.every(c => c.done), hol = L.HOLIDAYS[d], w = L.weekday(d), isT = d === TODAY();
+    const live = L.cardsFor(d, A.me.id, A.students, recs()).filter(c => !c.removed && (A.filter === '전체' || c.sid === A.filter)), ok = live.length && live.every(c => c.done), hol = L.HOLIDAYS[d], w = L.weekday(d), isT = d === TODAY();
     const bg = isT ? '#2563eb' : ok ? '#f8fafc' : live.length && !hol ? '#eaf2ff' : '#fff', fg = isT ? '#fff' : hol ? '#c62828' : w === 6 ? '#2563eb' : ok ? '#94a3b8' : w === 0 ? '#94a3b8' : '#1e3a8a';
     cells.push(`<button class="cd2" data-d="${d}" title="${esc(hol || '')}" style="background:${bg};color:${fg};${d === A.cur ? 'outline:2px solid #1e293b' : ''}">${+d.slice(8)}${ok ? '<em>✓</em>' : ''}</button>`);
   }
@@ -93,34 +93,85 @@ function mainScreen() {
   const past = L.pendingDates(t0, A.me.id, A.students, recs(), [L.prevMonth(L.monthOf(t0))]);
   const pastN = past.reduce((a, x) => a + x.n, 0);
   const names = A.students.filter(s => L.ownerAt(s, d) === A.me.id && !(s.endDate && s.endDate < m + '-01'));
+  if (A.filter !== '전체' && !names.some(s => s.id === A.filter)) A.filter = '전체';
+  const shown = A.filter === '전체' ? names : names.filter(s => s.id === A.filter);
   const view = list.filter(c => !c.removed && (A.filter === '전체' || c.sid === A.filter)).sort((a, b) => (a.done ? 1 : 0) - (b.done ? 1 : 0));
   const log = L.monthLog(recs(), m, A.me.id).filter(r => A.filter === '전체' || r.sid === A.filter), tot = L.totals(L.monthLog(recs(), m, A.me.id));
   const wk = Array.from({ length: 6 }, (_, i) => L.add(A.mon, i));
   const banners = `${todayLeft ? `<button class="ban" id="goToday" style="background:#ffedd5;color:#c2410c">오늘 출석 ${todayLeft}건이 남았어요</button>` : `<div class="ban" style="background:var(--sky);color:var(--navy)">오늘 남은 출석이 없어요 ✓</div>`}${pastN ? `<button class="ban" id="goPast" style="background:#fff8e8;color:#a96a12">지난 날짜에 안 누른 출석 ${pastN}건이 있어요 · ${L.md(past[0].date)} 보기</button>` : ''}`;
-  const left = `${banners}<div class="h">${L.label(d)}까지 누적</div><div class="cg">${names.length ? names.map(s => { const c = L.cumulative(recs(), s.id, d), lim = s.limit || 66; return `<div class="cc"><div class="cn">${sn(s.id, s.name)}</div><div class="cv">${L.fmt(c)}</div><div class="cs">남은 ${L.fmt(Math.max(lim - c, 0))} / ${L.fmt(lim)}</div></div>`; }).join('') : '<div class="cc" style="grid-column:1/-1"><div class="meta">아직 학생이 없어요. 메뉴의 시간표와 학생 관리에서 추가해 주세요.</div></div>'}</div>
+  const left = `${banners}<div class="h">${L.label(d)}까지 누적</div><div class="cg">${names.length ? names.map(s => { const c = L.cumulative(recs(), s.id, d), lim = s.limit || 66; return `<button class="cc ${A.filter === s.id ? 'on' : ''}" data-fs="${esc(s.id)}"><div class="cn">${sn(s.id, s.name)}</div><div class="cv">${L.fmt(c)}</div><div class="cs">남은 ${L.fmt(Math.max(lim - c, 0))} / ${L.fmt(lim)}</div></button>`; }).join('') : '<div class="cc" style="grid-column:1/-1"><div class="meta">아직 학생이 없어요. 메뉴의 시간표와 학생 관리에서 추가해 주세요.</div></div>'}</div>
   <div class="nav"><button id="pv" aria-label="이전 주">‹</button><div>${L.md(wk[0])} ~ ${L.md(wk[5])}</div><button id="nx" aria-label="다음 주">›</button></div><div class="dd">${wk.map(dateCell).join('')}</div><div class="calw"><div class="calnav"><button id="cp" aria-label="이전 달">‹</button><b>${m.slice(0, 4)}년 ${+m.slice(5)}월</b><button id="cn" aria-label="다음 달">›</button></div>${monthCal(m)}${bulkBtns()}</div>
   </section><section class="col ca">${L.HOLIDAYS[d] ? `<div class="ok" style="background:#fdecea;color:#c62828">${esc(L.HOLIDAYS[d])} 공휴일이에요. 운영한 날이면 출석을 누르면 돼요.</div>` : ''}
-  <div class="chips">${['전체', ...names.map(s => s.id)].map(id => `<button class="fl ${id === A.filter ? 'on' : ''}" data-id="${esc(id)}" style="${id !== '전체' && id === A.filter ? `background:${L.colorOf(names.find(n => n.id === id), id)};color:#fff;border-color:transparent` : ''}">${esc(id === '전체' ? '전체' : names.find(n => n.id === id).name)}</button>`).join('')}</div>
+  <div class="day">${dl(d)} 출석${A.filter === '전체' ? '' : ` · ${esc(names.find(s => s.id === A.filter).name)}만 보기`}</div>
   ${view.length ? view.map(card).join('') : `<div class="meta" style="margin:0 2px 10px">이 날은 일정이 없어요.</div>`}
-  ${A.adding ? addForm(names) : ''}<button id="addBtn" class="wide lite">+ 일정 추가</button><div class="h">${+m.slice(5)}월 인정결제 (학생별 월 1회)</div>${names.map(s => ackCard(s, m)).join('')}<div class="pcs"><div class="h">${+m.slice(5)}월 학생별 합계</div>${stuTot(names, m)}</div>`;
-  const right = `<div class="mo"><div class="h">${+m.slice(5)}월 학생별 합계</div>${stuTot(names, m)}</div>
-  <div class="h">${+m.slice(5)}월 기록</div><div class="field"><input id="mp" type="month" aria-label="달 고르기" value="${m}"></div><div class="mo">${bulkBtns()}</div><div class="card">${log.length ? log.map(logRow).join('') : '<div class="meta">아직 출석한 기록이 없어요.</div>'}</div>`;
+  <button id="addBtn" class="wide lite">+ 이 날 온 학생 추가</button><div class="h">${+m.slice(5)}월 인정결제 (학생별 월 1회)</div>${names.map(s => ackCard(s, m)).join('')}<div class="pcs"><div class="h">${+m.slice(5)}월 학생별 합계</div>${stuTot(shown, m)}</div>`;
+  const fchips = `<div class="chips">${['전체', ...names.map(s => s.id)].map(id => `<button class="fl ${id === A.filter ? 'on' : ''}" data-id="${esc(id)}" style="${id !== '전체' && id === A.filter ? `background:${L.colorOf(names.find(n => n.id === id), id)};color:#fff;border-color:transparent` : ''}">${esc(id === '전체' ? '전체' : names.find(n => n.id === id).name)}</button>`).join('')}</div>`;
+  const right = `<div class="mo"><div class="h">${+m.slice(5)}월 학생별 합계</div>${stuTot(shown, m)}</div>
+  <div class="h">${+m.slice(5)}월 기록</div><div class="field"><input id="mp" type="month" aria-label="달 고르기" value="${m}"></div>${fchips}<div class="mo">${bulkBtns()}</div><div class="card">${log.length ? log.map(logRow).join('') : '<div class="meta">아직 출석한 기록이 없어요.</div>'}</div>`;
   return `<div class="cols t-${A.tab || 'a'}"><section class="col ca">${left}</section><section class="col cb">${right}</section></div>`;
 }
 function card(c) {
-  const k = PC[c.pay] || PC.정상, tot = L.cumulative(recs(), c.sid, A.cur), open = A.open[c.id], cs = c.done ? `color:${k[1]}` : '';
+  const k = PC[c.pay] || PC.정상, tot = L.cumulative(recs(), c.sid, A.cur);
   
-  return `<div class="card ${c.done ? 'done' : ''}" data-c="${esc(c.id)}" ${c.done ? `style="border:2px solid ${k[1]}"` : ''}><div class="rw"><div style="min-width:0"><div class="nm">${c.done ? CK + ' ' : ''}${sn(c.sid, c.sname)}</div><div class="meta">${esc(c.s)}~${esc(c.e)} · ${esc(c.staff || A.me.name)} · 당일 ${L.fmt(c.h)}<br>누적 <b>${L.fmt(tot)}</b> · <span style="color:${k[1]}">${c.pay}결제</span></div></div><div class="ac"><button class="chk ${c.done ? '' : 'p'}">${c.done ? '취소' : '출석'}</button><button class="cx" aria-label="이 날 일정 지우기"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button></div></div>${c.pay === '소급' && !open && !c.reason ? '<div class="err" style="margin:8px 0 0">소급 사유를 골라 주세요.</div>' : ''}<button class="more tog">${open ? '접기 ▲' : '결제구분 · 수정 ▼'}</button>${open ? editPanel(c) : ''}</div>`;
+  return `<div class="card ${c.done ? 'done' : ''}" data-c="${esc(c.id)}" ${c.done ? `style="border:2px solid ${k[1]}"` : ''}><div class="rw"><div style="min-width:0"><div class="nm">${c.done ? CK + ' ' : ''}${sn(c.sid, c.sname)}</div><div class="meta">${esc(c.s)}~${esc(c.e)} · ${esc(c.staff || A.me.name)} · 당일 ${L.fmt(c.h)}<br>누적 <b>${L.fmt(tot)}</b> · <span style="color:${k[1]}">${c.pay}결제</span></div></div><div class="ac"><button class="chk ${c.done ? '' : 'p'}">${c.done ? '취소' : '출석'}</button><button class="cx" aria-label="이 날 일정 지우기"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button><button class="tog wd">시간·결제 바꾸기</button></div></div>${c.pay === '소급' && !c.reason ? '<div class="err" style="margin:8px 0 0">소급 사유를 골라 주세요.</div>' : ''}</div>`;
 }
-function editPanel(c) {
-  const e = A.edit[c.id] || {}, st = A.teachers.filter(t => t.active).map(t => t.name), staff = c.staff || A.me.name;
-  if (!st.includes(staff)) st.push(staff);
-  return `<div class="pays">${L.PAYS.map(p => { const q = PC[p], on = p === c.pay; return `<button class="py" data-p="${p}" style="${on ? `background:${q[0]};color:${q[1]};border:2px solid ${q[1]}` : ''}">${p}</button>`; }).join('')}</div>
-  ${c.pay === '소급' ? `<label class="field">소급 사유<select class="rs"><option value="">사유 선택</option>${L.REASONS.map(r => `<option ${r === c.reason ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label>${c.reason === '기타' ? `<label class="field">기타 사유<input class="etc" value="${esc(c.etc)}" placeholder="사유 입력"></label>` : ''}` : ''}
-  <label class="field">제공인력<select class="stf">${st.map(n => `<option ${n === staff ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label><div class="tbox">${timeField('s', 'class="ts"', '시작 시간', c.s)}${timeField('e', 'class="te"', '종료 시간', c.e)}${hoursField('h_' + c.id.replace(/\W/g, '_'), c.h, 10)}</div>${e.err ? `<p class="err">${esc(e.err)}</p>` : ''}<button class="wide p sv">그날만 저장</button>`;
+const dl = d => `${L.label(d)} (${L.WD[L.weekday(d)]})`;
+function openEd(c, pay) {
+  A.ed = { mode: 'edit', orig: c, origDate: c.date, date: c.date, sid: c.sid, sname: c.sname, pay: pay || c.pay, reason: c.reason || '', etc: c.etc || '', s: c.s || '', e: c.e || '', h: c.h, staff: c.staff || A.me.name, err: '' };
+  render();
 }
-function addForm(names) {
-  return `<div class="card"><label class="field">학생<select id="nS">${names.map(n => `<option value="${esc(n.id)}">${esc(n.name)}</option>`).join('')}</select></label><div class="tbox">${timeField('s', 'id="nA"', '시작 시간', '16:00')}${timeField('e', 'id="nB"', '종료 시간', '19:00')}${hoursField('nH', 3, 10)}</div>${A.addErr ? `<p class="err">${esc(A.addErr)}</p>` : ''}<button id="nOk" class="wide p" style="margin:0">일정 넣기</button></div>`;
+function editorHtml() {
+  const x = A.ed, add = x.mode === 'add', ack = x.pay === '인정', max = ack ? 16 : 10, st = A.teachers.filter(t => t.active).map(t => t.name), mine = myStudents();
+  if (!st.includes(x.staff)) st.push(x.staff);
+  const q = x.reason === '기타' ? `<label class="field">기타 사유<input id="edE" value="${esc(x.etc)}" placeholder="사유 입력"></label>` : '';
+  return `<div class="back"><div class="card ed" role="dialog" aria-modal="true"><button id="edX" class="edx" aria-label="창 닫기">✕</button><div class="edt">${add ? '이 날 온 학생 추가' : `${esc(x.sname)} · ${dl(x.origDate)} 수정`}</div><div class="meta">${add ? '날짜와 학생을 골라 주세요.' : x.orig.done ? '출석한 기록이에요.' : '아직 출석 전이에요. 저장해도 출석은 [출석] 버튼으로 해요.'}</div>
+  <label class="field">날짜<input id="edD" type="date" value="${esc(x.date)}"></label>${add ? `<label class="field">학생<select id="edS">${mine.map(s => `<option value="${esc(s.id)}" ${s.id === x.sid ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>` : ''}
+  <div class="field"><span>결제구분</span><div class="pays4">${L.ALL_PAYS.map(p => { const k = PC[p]; return `<button type="button" class="edp" data-p="${p}" style="${p === x.pay ? `background:${k[0]};color:${k[1]};border:2px solid ${k[1]}` : ''}">${p}</button>`; }).join('')}</div></div>
+  ${x.pay === '소급' ? `<label class="field">소급 사유<select id="edR"><option value="">사유를 골라 주세요</option>${L.REASONS.map(r => `<option ${r === x.reason ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label>${q}` : ''}
+  <label class="field">제공인력<select id="edF">${st.map(n => `<option ${n === x.staff ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+  <div class="tbox">${ack ? '' : timeField('s', 'class="ts"', '시작 시간', x.s || '16:00') + timeField('e', 'class="te"', '종료 시간', x.e || '19:00')}${hoursField('edH', Math.min(x.h, max), max, ack ? '인정 시간 (학생별 월 1회)' : '기록 시간')}</div>
+  ${x.err ? `<p class="err">${esc(x.err)}</p>` : ''}<div class="two" style="margin-top:12px"><button id="edOk" class="p">저장하기</button><button id="edNo">취소하기</button></div></div></div>`;
+}
+function pullEd() {
+  const x = A.ed, $ = i => $root.querySelector(i); if (!x || !$('#edOk')) return;
+  x.date = $('#edD').value; if ($('#edS')) { x.sid = $('#edS').value; x.sname = myStudents().find(s => s.id === x.sid)?.name || ''; }
+  if ($('#edR')) x.reason = $('#edR').value; if ($('#edE')) x.etc = $('#edE').value; x.staff = $('#edF').value;
+  if ($('.ed .ts')) { x.s = $('.ed .ts').value; x.e = $('.ed .te').value; }
+  const h = readHours($('.ed .hf')); if (h.h) x.h = h.h;
+}
+const dropRec = o => (o.custom || o.id.startsWith('ack_')) ? S.removeRecord(o.id) : (() => { const { saved, ...b } = o; return S.saveRecord({ ...b, staff: b.staff || A.me.name, tid: A.me.id, tname: A.me.name, updatedAt: Date.now(), bulk: false, done: false, removed: true }); })();
+function saveEd() {
+  pullEd(); const x = A.ed, fail2 = m => { x.err = m; render(); }, ack = x.pay === '인정', h = readHours($root.querySelector('.ed .hf')), o = x.orig;
+  if (!x.date) return fail2('날짜를 골라 주세요.');
+  if (!x.sid) return fail2('학생을 먼저 추가해 주세요.');
+  if (x.pay === '소급' && !x.reason) return fail2('소급 사유를 골라 주세요.');
+  if (x.pay === '소급' && x.reason === '기타' && !x.etc.trim()) return fail2('기타 사유를 입력해 주세요.');
+  if (!ack && (!x.s || !x.e || x.s >= x.e)) return fail2('종료 시간은 시작 시간보다 늦어야 해요.');
+  if (h.error) return fail2(h.error);
+  const m = L.monthOf(x.date), base = { date: x.date, month: m, sid: x.sid, sname: x.sname, tid: A.me.id, tname: A.me.name, staff: x.staff, h: h.h, pay: x.pay, reason: x.pay === '소급' ? x.reason : '', etc: x.pay === '소급' && x.reason === '기타' ? x.etc : '', updatedAt: Date.now(), bulk: false, removed: false }, jobs = [];
+  if (ack) {
+    const id = L.ackId(m, x.sid), ex = A.rec.get(id);
+    if (ex && ex.id !== o?.id) return fail2(`${x.sname} 학생은 ${dl(ex.date)}에 이번 달 인정결제가 이미 있어요. 인정결제는 한 달에 한 번이에요.`);
+    jobs.push(S.saveRecord({ ...base, id, s: '', e: '', done: true })); if (o && o.id !== id) jobs.push(dropRec(o));
+  } else {
+    const same = o && !o.id.startsWith('ack_') && o.date === x.date;
+    if (same) { const { saved, ...b } = o; jobs.push(S.saveRecord({ ...b, ...base, s: x.s, e: x.e })); }
+    else {
+      const t = L.cardsFor(x.date, A.me.id, A.students, recs()).find(c => c.sid === x.sid);
+      if (t && !t.removed && (!o || t.done)) return fail2(`${x.sname} 학생은 ${dl(x.date)}에 이미 ${t.done ? '기록이' : '일정이'} 있어요. 그 날짜에서 확인해 주세요.`);
+      const { saved, ...tb } = t || {}, done = o ? (o.id.startsWith('ack_') ? true : !!o.done) : false;
+      jobs.push(S.saveRecord({ ...tb, ...base, id: t ? t.id : `${x.date}_${x.sid}_x${Date.now()}`, custom: t ? !!t.custom : true, s: x.s, e: x.e, done }));
+      if (o) jobs.push(dropRec(o));
+    }
+  }
+  Promise.all(jobs).catch(fail); A.ed = null; A.cur = x.date; A.mon = L.mondayOf(x.date); syncMonths(); document.activeElement?.blur?.(); toast('저장되었어요 ✓'); render();
+}
+function bindEd() {
+  const $ = i => $root.querySelector(i), close = () => { A.ed = null; syncMonths(); render(); }, ed = $('.ed');
+  bindHours(ed); bindTimes(ed); $('#edX').onclick = close; $('#edNo').onclick = close; $('#edOk').onclick = saveEd;
+  $('#edD').onchange = () => { pullEd(); A.ed.err = ''; syncMonths(); };
+  ed.querySelectorAll('.edp').forEach(b => b.onclick = () => { pullEd(); const x = A.ed; x.pay = b.dataset.p; x.err = ''; if (x.pay !== '소급') { x.reason = ''; x.etc = ''; } if (x.pay !== '인정' && x.h > 10) x.h = 10; render(); });
+  if ($('#edR')) $('#edR').onchange = () => { pullEd(); A.ed.err = ''; render(); };
 }
 function ackCard(s, m) {
   const id = L.ackId(m, s.id), r = A.rec.get(id), f = A.ack[id];
@@ -129,8 +180,8 @@ function ackCard(s, m) {
   return `<div class="card" data-a="${esc(id)}" data-s="${esc(s.id)}"><div class="rw"><div class="nm">${sn(s.id, s.name)}</div><button class="aadd" style="color:#6d3fc4;background:#f5f0ff;border-color:#6d3fc4;padding:0 4px">입력</button></div></div>`;
 }
 function logRow(r) {
-  const w = Math.floor(r.h), mm = r.h - w > 0, hol = L.HOLIDAYS[r.date], wd = L.weekday(r.date), max = r.pay === '인정' ? 16 : 10;
-  return `<div class="log" data-r="${esc(r.id)}"><div class="lh"><span style="color:${hol ? '#c62828' : wd === 6 ? '#2563eb' : 'inherit'}">${L.md(r.date)} (${L.WD[wd]})</span> ${sn(r.sid, r.sname)} · ${esc(r.staff || '')}</div><div class="meta">당일 ${L.fmt(r.h)} · 누적 <b>${L.fmt(L.cumulative(recs(), r.sid, r.date))}</b> · <span style="color:${PC[r.pay][1]};font-weight:600;${r.pay === '인정' ? `background:${PC[r.pay][0]};border:1px solid ${PC[r.pay][1]}66;border-radius:7px;padding:1px 7px` : ''}">${r.pay}결제</span>${r.pay === '소급' && r.reason ? ` · ${esc(r.reason === '기타' ? r.etc : r.reason)}` : ''}</div>${r.pay === '인정' ? '' : `<div class="lg"><select class="lp" aria-label="결제구분" style="background-color:${PC[r.pay][0]};color:${PC[r.pay][1]};border-color:${PC[r.pay][1]}66;font-weight:700">${L.PAYS.map(p => `<option value="${p}" ${p === r.pay ? 'selected' : ''}>${p}결제</option>`).join('')}</select><select class="lhh" aria-label="시간">${Array.from({ length: 11 }, (_, i) => `<option value="${i}" ${i === w ? 'selected' : ''}>${i}시간</option>`).join('')}</select><select class="lmm" aria-label="분"><option value="0" ${mm ? '' : 'selected'}>0분</option><option value="30" ${mm ? 'selected' : ''} ${w === 10 ? 'disabled' : ''}>30분</option></select><button class="lc cx" aria-label="기록 삭제"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button></div>`}</div>`;
+  const w = Math.floor(r.h), mm = r.h - w > 0, hol = L.HOLIDAYS[r.date], wd = L.weekday(r.date), max = r.pay === '인정' ? 16 : 10, ack = r.pay === '인정';
+  return `<div class="log" data-r="${esc(r.id)}"><div class="lh"><span style="color:${hol ? '#c62828' : wd === 6 ? '#2563eb' : 'inherit'}">${L.md(r.date)} (${L.WD[wd]})</span> ${sn(r.sid, r.sname)} · ${esc(r.staff || '')}</div><div class="meta">당일 ${L.fmt(r.h)} · 누적 <b>${L.fmt(L.cumulative(recs(), r.sid, r.date))}</b> · <span style="color:${PC[r.pay][1]};font-weight:600;${r.pay === '인정' ? `background:${PC[r.pay][0]};border:1px solid ${PC[r.pay][1]}66;border-radius:7px;padding:1px 7px` : ''}">${r.pay}결제</span>${r.pay === '소급' && r.reason ? ` · ${esc(r.reason === '기타' ? r.etc : r.reason)}` : ''}${r.pay === '소급' ? ' <button class="lre">사유 바꾸기</button>' : ''}</div>${`<div class="lg"><select class="lp" aria-label="결제구분" style="background-color:${PC[r.pay][0]};color:${PC[r.pay][1]};border-color:${PC[r.pay][1]}66;font-weight:700">${L.ALL_PAYS.map(p => `<option value="${p}" ${p === r.pay ? 'selected' : ''}>${p}결제</option>`).join('')}</select><select class="lhh" aria-label="시간">${Array.from({ length: max + 1 }, (_, i) => `<option value="${i}" ${i === w ? 'selected' : ''}>${i}시간</option>`).join('')}</select><select class="lmm" aria-label="분"><option value="0" ${mm ? '' : 'selected'}>0분</option><option value="30" ${mm ? 'selected' : ''} ${w === max ? 'disabled' : ''}>30분</option></select><button class="lc cx" aria-label="기록 삭제"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button></div>`}</div>`;
 }
 function saveCard(c, patch) {
   const { saved, ...base } = c; const staff = base.staff || A.me.name;
@@ -152,38 +203,20 @@ function bindMain(r) {
   const gt = r.querySelector('#goToday'); if (gt) gt.onclick = () => go(TODAY());
   const gp = r.querySelector('#goPast'); if (gp) gp.onclick = () => go(L.pendingDates(TODAY(), A.me.id, A.students, recs(), [L.prevMonth(L.monthOf(TODAY()))])[0].date);
   const mp = r.querySelector('#mp'); mp.onchange = () => { if (mp.value) { mp.blur(); go(mp.value + '-01'); } };
-  r.querySelector('#addBtn').onclick = () => { A.adding = !A.adding; A.addErr = ''; render(); };
+  r.querySelectorAll('[data-fs]').forEach(b => b.onclick = () => { A.filter = A.filter === b.dataset.fs ? '전체' : b.dataset.fs; render(); });
+  r.querySelector('#addBtn').onclick = () => { const mine = myStudents(); if (!mine.length) return toast('학생을 먼저 추가해 주세요.'); const sid = A.filter !== '전체' ? A.filter : mine[0].id; A.ed = { mode: 'add', orig: null, origDate: A.cur, date: A.cur, sid, sname: mine.find(s => s.id === sid).name, pay: '정상', reason: '', etc: '', s: '16:00', e: '19:00', h: 3, staff: A.me.name, err: '' }; render(); };
   bindHours(r); bindTimes(r);
-  const ok = r.querySelector('#nOk'); if (ok) ok.onclick = () => {
-    const s = r.querySelector('#nA').value, e = r.querySelector('#nB').value, h = readHours(r.querySelector('#nH')), st = A.students.find(x => x.id === r.querySelector('#nS').value);
-    if (!st) { A.addErr = '학생을 먼저 추가해 주세요.'; return render(); }
-    if (!s || !e || s >= e) { A.addErr = '종료 시간은 시작 시간보다 늦어야 해요.'; return render(); }
-    if (h.error) { A.addErr = h.error; return render(); }
-    A.adding = false; saveCard({ id: `${A.cur}_${st.id}_x${Date.now()}`, date: A.cur, month: L.monthOf(A.cur), sid: st.id, sname: st.name, s, e, h: h.h, pay: '정상', reason: '', etc: '', done: false, custom: true });
-  };
   r.querySelectorAll('[data-c]').forEach(el => {
     const c = cardsNow().find(x => x.id === el.dataset.c); if (!c) return;
     const q = s => el.querySelector(s);
-    if (q('.restore')) q('.restore').onclick = () => S.removeRecord(c.id).catch(fail);
     if (c.removed) return;
-    q('.chk').onclick = () => { if (!c.done && c.pay === '소급' && (!c.reason || (c.reason === '기타' && !c.etc?.trim()))) { A.open[c.id] = true; A.edit[c.id] = { err: '소급 사유를 입력해 주세요.' }; return render(); } A.edit[c.id] = {}; saveCard(c, { done: !c.done }); };
-    q('.tog').onclick = () => { A.open[c.id] = !A.open[c.id]; render(); };
+    q('.chk').onclick = () => { if (!c.done && c.pay === '소급' && (!c.reason || (c.reason === '기타' && !c.etc?.trim()))) { openEd(c); A.ed.err = '소급 사유를 입력해 주세요.'; return render(); } saveCard(c, { done: !c.done }); };
+    q('.tog').onclick = () => openEd(c);
     q('.cx').onclick = () => { A.modal = { text: `${c.sname} ${L.label(c.date)} 일정을 지울까요? 다음 주 시간표는 그대로 나와요.`, yes: '지우기', run: () => c.custom ? S.removeRecord(c.id).catch(fail) : saveCard(c, { removed: true, done: false }) }; render(); };
-    el.querySelectorAll('.py').forEach(b => b.onclick = () => saveCard(c, { pay: b.dataset.p, ...(b.dataset.p === '소급' ? {} : { reason: '', etc: '' }) }));
-    if (q('.rs')) q('.rs').onchange = () => { q('.rs').blur(); saveCard(c, { reason: q('.rs').value }); };
-    if (q('.etc')) q('.etc').onchange = () => saveCard(c, { etc: q('.etc').value });
-    if (q('.sv')) q('.sv').onclick = () => {
-      const s = q('.ts').value, e = q('.te').value, h = readHours(q('.hf'));
-      if (!s || !e || s >= e) { A.edit[c.id] = { err: '종료 시간은 시작 시간보다 늦어야 해요.' }; return render(); }
-      if (h.error) { A.edit[c.id] = { err: h.error }; return render(); }
-      A.edit[c.id] = {}; A.open[c.id] = false; document.activeElement?.blur?.(); saveCard(c, { s, e, h: h.h, staff: q('.stf').value }); render();
-    };
-    if (q('.skip')) q('.skip').onclick = () => { A.open[c.id] = false; saveCard(c, { removed: true, done: false }); };
-    if (q('.del')) q('.del').onclick = () => { A.modal = { text: `${c.sname} 일정을 지울까요?`, yes: '지우기', run: () => S.removeRecord(c.id).catch(fail) }; render(); };
   });
   r.querySelectorAll('[data-a]').forEach(el => {
     const id = el.dataset.a, st = A.students.find(s => s.id === el.dataset.s), rec = A.rec.get(id), q = s => el.querySelector(s), m = L.monthOf(A.cur);
-    if (q('.aadd')) q('.aadd').onclick = () => { A.ack[id] = { date: A.cur, h: 1 }; render(); };
+    if (q('.aadd')) q('.aadd').onclick = () => { A.ack[id] = { date: L.lastDay(m), h: 1 }; render(); };
     if (q('.aed')) q('.aed').onclick = () => { A.ack[id] = { date: rec.date, h: rec.h }; render(); };
     if (q('.adl')) q('.adl').onclick = () => { A.modal = { text: `${st.name} 인정결제를 지울까요?`, yes: '지우기', run: () => S.removeRecord(id).catch(fail) }; render(); };
     if (q('.acn')) q('.acn').onclick = () => { delete A.ack[id]; render(); };
@@ -196,11 +229,12 @@ function bindMain(r) {
     };
   });
   r.querySelectorAll('[data-r]').forEach(el => {
-    const x = A.rec.get(el.dataset.r), { id: _i, ...d } = x || {}; if (!x || x.pay === '인정') return;
-    el.querySelector('.lp').onchange = e => { e.target.blur(); const p = e.target.value; if (p === '소급' && !x.reason) { A.cur = x.date; A.mon = L.mondayOf(x.date); A.open[x.id] = true; A.edit[x.id] = { err: '소급 사유를 골라 주세요.' }; } S.saveRecord({ ...x, bulk: false, pay: p, ...(p === '소급' ? {} : { reason: '', etc: '' }) }).catch(fail); };
-    const saveH = e => { e.target.blur(); const hh = +el.querySelector('.lhh').value, mi = hh === 10 ? 0 : +el.querySelector('.lmm').value, h = hh + mi / 60; if (h <= 0) { toast('30분 이상으로 골라 주세요.'); return render(); } S.saveRecord({ ...x, h, bulk: false }).catch(fail); };
+    const x = A.rec.get(el.dataset.r), { id: _i, ...d } = x || {}; if (!x) return;
+    el.querySelector('.lp').onchange = e => { e.target.blur(); const p = e.target.value; if (p === '소급' || p === '인정' || x.pay === '인정') return openEd(x, p); S.saveRecord({ ...x, bulk: false, pay: p, reason: '', etc: '' }).catch(fail); toast('저장되었어요 ✓'); };
+    if (el.querySelector('.lre')) el.querySelector('.lre').onclick = () => openEd(x);
+    const saveH = e => { e.target.blur(); const hh = +el.querySelector('.lhh').value, mi = hh === (x.pay === '인정' ? 16 : 10) ? 0 : +el.querySelector('.lmm').value, h = hh + mi / 60; if (h <= 0) { toast('30분 이상으로 골라 주세요.'); return render(); } S.saveRecord({ ...x, h, bulk: false }).catch(fail); toast('저장되었어요 ✓'); };
     el.querySelector('.lhh').onchange = saveH; el.querySelector('.lmm').onchange = saveH;
-    el.querySelector('.lc').onclick = () => { A.modal = { text: `${x.sname} ${L.label(x.date)} 기록을 삭제할까요?`, yes: '삭제', run: () => (x.custom ? S.removeRecord(x.id) : S.saveRecord({ ...x, done: false, removed: true })).catch(fail) }; render(); };
+    el.querySelector('.lc').onclick = () => { A.modal = { text: `${x.sname} ${L.label(x.date)} 기록을 삭제할까요?`, yes: '삭제', run: () => dropRec(x).catch(fail) }; render(); };
   });
 }
 const it = (id, name, icon, c, b) => `<button class="it" id="${id}" style="color:${c}"><span class="ic" style="background:${b}"><svg viewBox="0 0 24 24" aria-hidden="true">${SVG[icon]}</svg></span><span>${name}</span><span aria-hidden="true" style="color:#94a3b8">›</span></button>`;
@@ -234,7 +268,7 @@ function scheduleScreen() {
   const my = myStudents(); if (!my.find(s => s.id === A.mgr)) { A.mgr = my[0]?.id || ''; A.draft = null; }
   const st = my.find(s => s.id === A.mgr);
   if (st && !A.draft) A.draft = st.versions[st.versions.length - 1].days.map(d => ({ ...d }));
-  return `${backBtn('시간표와 학생 관리')}${A.sErr ? `<p class="err">${esc(A.sErr)}</p>` : ''}${A.sMsg ? `<div class="ok">${esc(A.sMsg)}</div>` : ''}<div class="card"><label class="field">새 학생 이름<input id="ns" placeholder="이름 입력" maxlength="20"></label><button id="as" class="wide lite" style="margin:0">학생 추가</button></div>${st ? `<div class="chips">${my.map(s => `<button class="ms ${s.id === A.mgr ? 'on' : ''}" data-id="${esc(s.id)}">${esc(s.name)}</button>`).join('')}</div><div class="card"><label class="field">적용 시작 날짜<input id="fr" type="date" value="${A.from}"></label>${A.draft.map((d, i) => `<div class="row tbox" data-i="${i}"><div class="rh"><b style="font-size:18px;${i === 5 ? 'color:#2563eb' : ''}">${L.SD[i]}요일</b><button class="tg ${d.on ? 'on' : ''}" style="min-width:92px">${d.on ? '일정 있음' : '일정 없음'}</button></div>${d.on ? `<div style="margin-top:8px">${timeField('s', 'class="s"', '시작 시간', d.s)}${timeField('e', 'class="e"', '종료 시간', d.e)}${hoursField('d' + i, d.h, 10)}</div>` : ''}</div>`).join('')}<label class="field" style="margin-top:10px">제공인력<select id="sf">${[...new Set([...A.teachers.filter(t => t.active).map(t => t.name), st.staff || A.me.name])].map(n => `<option ${n === (st.staff || A.me.name) ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label><div class="field"><span>학생 글자색</span><div class="sws">${L.COLORS.map(c => `<button type="button" class="sw" data-c="${c}" aria-label="글자색 선택" style="background:${c};${L.colorOf(st, st.id) === c ? 'outline:3px solid #93c5fd;outline-offset:2px' : ''}"></button>`).join('')}</div></div><label class="field">월 총시간<input id="lim" inputmode="numeric" value="${st.limit || 66}"></label><button id="sv" class="wide p" style="margin:0">시간표 저장</button></div><div class="card"><div class="h" style="margin-top:0">${esc(st.name)} 이용 상태</div><div class="meta" style="margin-bottom:8px">${st.endDate ? `이용 종료 날짜: ${st.endDate}` : '이용 중'}</div>${st.endDate ? '<button id="res" class="wide lite" style="margin:0">이용 재개</button>' : `<label class="field">이용 종료 날짜<input id="ed" type="date" value="${L.lastDay(L.monthOf(TODAY()))}"></label><button id="ef" class="wide" style="margin:0">이용 종료</button>`}</div>` : '<div class="meta">맡은 학생이 없어요. 위에서 학생을 추가해 주세요.</div>'}`;
+  return `${backBtn('시간표와 학생 관리')}${A.sErr ? `<p class="err">${esc(A.sErr)}</p>` : ''}${A.sMsg ? `<div class="ok">${esc(A.sMsg)}</div>` : ''}<div class="card"><label class="field">새 학생 이름<input id="ns" placeholder="이름 입력" maxlength="20"></label><button id="as" class="wide lite" style="margin:0">학생 추가</button></div>${st ? `<div class="chips">${my.map(s => `<button class="ms ${s.id === A.mgr ? 'on' : ''}" data-id="${esc(s.id)}">${esc(s.name)}</button>`).join('')}</div><div class="card"><label class="field">이 시간표를 언제부터 쓸까요?<input id="fr" type="date" value="${A.from}"></label><div class="meta" style="margin:-4px 0 8px">지금 저장된 시간표: ${L.label(st.versions[st.versions.length - 1].from)}부터. 한 번 저장하면 바꾸기 전까지 매달 그대로 나와요.</div>${A.draft.map((d, i) => `<div class="row tbox" data-i="${i}"><div class="rh"><b style="font-size:18px;${i === 5 ? 'color:#2563eb' : ''}">${L.SD[i]}요일</b><button class="tg ${d.on ? 'on' : ''}" style="min-width:92px">${d.on ? '일정 있음' : '일정 없음'}</button></div>${d.on ? `<div style="margin-top:8px">${timeField('s', 'class="s"', '시작 시간', d.s)}${timeField('e', 'class="e"', '종료 시간', d.e)}${hoursField('d' + i, d.h, 10)}</div>` : ''}</div>`).join('')}<label class="field" style="margin-top:10px">제공인력<select id="sf">${[...new Set([...A.teachers.filter(t => t.active).map(t => t.name), st.staff || A.me.name])].map(n => `<option ${n === (st.staff || A.me.name) ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label><div class="field"><span>학생 글자색</span><div class="sws">${L.COLORS.map(c => `<button type="button" class="sw" data-c="${c}" aria-label="글자색 선택" style="background:${c};${L.colorOf(st, st.id) === c ? 'outline:3px solid #93c5fd;outline-offset:2px' : ''}"></button>`).join('')}</div></div><label class="field">월 총시간<input id="lim" inputmode="numeric" value="${st.limit || 66}"></label><button id="sv" class="wide p" style="margin:0">시간표 저장</button></div><div class="card"><div class="h" style="margin-top:0">${esc(st.name)} 이용 상태</div><div class="meta" style="margin-bottom:8px">${st.endDate ? `이용 종료 날짜: ${st.endDate}` : '이용 중'}</div>${st.endDate ? '<button id="res" class="wide lite" style="margin:0">이용 재개</button>' : `<label class="field">이용 종료 날짜<input id="ed" type="date" value="${L.lastDay(L.monthOf(TODAY()))}"></label><button id="ef" class="wide" style="margin:0">이용 종료</button>`}</div>` : '<div class="meta">맡은 학생이 없어요. 위에서 학생을 추가해 주세요.</div>'}`;
 }
 function bindSchedule(r) {
   r.querySelector('#bk').onclick = () => go('menu');
@@ -259,9 +293,13 @@ function bindSchedule(r) {
     const st = A.students.find(s => s.id === A.mgr), lim = parseInt(r.querySelector('#lim').value, 10), bad = A.draft.find(d => d._bad);
     if (!A.from) A.sErr = '적용 시작 날짜를 골라 주세요.'; else if (bad) A.sErr = bad._bad; else if (A.draft.some(d => d.on && (!d.s || !d.e || d.s >= d.e))) A.sErr = '종료 시간은 시작 시간보다 늦어야 해요.'; else if (!(lim > 0 && lim < 1000)) A.sErr = '월 총시간을 숫자로 입력해 주세요.';
     if (A.sErr) return render();
+    const after = (st.versions || []).filter(x => x.from >= A.from && x.from !== A.from && x.days.some(d => d.on)), doSave = () => {
     const v = (st.versions || []).filter(x => x.from < A.from); v.push({ from: A.from, days: A.draft.map(d => ({ on: d.on, s: d.s, e: d.e, h: d.h })) });
     const ns = { ...st, versions: v, limit: lim, staff: r.querySelector('#sf').value }; A.students = A.students.map(s => s.id === st.id ? ns : s);
-    A.sMsg = `저장했어요. ${L.label(A.from)}부터 새 시간표가 나오고 지난 기록은 그대로예요.`; document.activeElement?.blur?.(); S.saveStudent(ns).catch(fail); render();
+    A.sMsg = `저장되었어요 ✓ ${L.label(A.from)}부터 시간표를 바꾸기 전까지 계속 적용돼요. 매달 저장하지 않아도 돼요.`; document.activeElement?.blur?.(); S.saveStudent(ns).catch(fail); toast('저장되었어요 ✓'); render();
+    };
+    if (after.length) { A.modal = { text: `${after.map(x => L.label(x.from)).join(', ')}부터 쓰는 시간표가 이미 있어요. 저장하면 그 시간표는 지워져요. 저장할까요?`, yes: '저장하기', run: doSave }; return render(); }
+    doSave();
   };
   const res = r.querySelector('#res'); if (res) res.onclick = () => { const st = A.students.find(s => s.id === A.mgr); S.saveStudent({ ...st, endDate: '' }).catch(fail); A.sMsg = `${st.name} 학생 이용을 다시 시작했어요.`; A.sErr = ''; render(); };
   const ef = r.querySelector('#ef'); if (ef) ef.onclick = () => { const st = A.students.find(s => s.id === A.mgr), d = r.querySelector('#ed').value; if (!d) { A.sErr = '이용 종료 날짜를 골라 주세요.'; return render(); } A.modal = { text: `${st.name} 학생을 ${L.label(d)} 까지만 이용하는 것으로 할까요? 지난 기록은 그대로 남아요.`, yes: '이용 종료', run: () => { S.saveStudent({ ...st, endDate: d }).catch(fail); A.sMsg = `${st.name} 학생은 ${d} 다음부터 일정이 나오지 않아요.`; A.sErr = ''; } }; render(); };
@@ -332,13 +370,13 @@ function bindAuth(r) {
 function suspendedScreen() { return `<div class="auth"><img src="icon-512.png" alt=""><h1>반디 출결부</h1><div class="card"><div class="ok">사용 중지된 계정이에요. 대표 선생님께 말씀해 주세요.</div><button id="so" class="wide" style="margin:0">로그아웃</button></div></div>`; }
 function modalHtml() { return `<div class="back"><div class="card"><div style="font-size:18px;font-weight:600;margin-bottom:12px;line-height:1.5">${esc(A.modal.text)}</div>${A.modal.cancelOnly ? '' : ''}<div class="two"><button id="mn">취소</button><button id="my" class="p">${esc(A.modal.yes)}</button></div></div></div>`; }
 function render() {
-  const y = window.scrollY;
+  const y = window.scrollY; pullEd();
   if (A.phase === 'loading') { $root.innerHTML = '<div class="auth"><img src="icon-512.png" alt=""><h1>반디 출결부</h1><p style="text-align:center;color:#64748b">불러오는 중…</p></div>'; return; }
   if (A.phase === 'error') { $root.innerHTML = `<div class="auth"><div class="card"><div class="err">${esc(A.err)}</div><button id="rt" class="wide" style="margin:0">다시 시도</button></div></div>`; $root.querySelector('#rt').onclick = () => location.reload(); return; }
   if (A.phase === 'setup' || A.phase === 'auth') { const vals = {}; ['n', 'p', 'c'].forEach(i => { const e = $root.querySelector('#' + i); if (e) vals[i] = e.value; }); $root.innerHTML = authScreen(); Object.entries(vals).forEach(([i, v]) => { const e = $root.querySelector('#' + i); if (e) e.value = v; }); return bindAuth($root); }
   if (A.phase === 'suspended') { $root.innerHTML = suspendedScreen(); $root.querySelector('#so').onclick = () => S.logout(); return; }
   const scr = { main: [mainScreen, bindMain], menu: [menuScreen, bindMenu], schedule: [scheduleScreen, bindSchedule], peers: [peersScreen, bindPeers], password: [passwordScreen, bindPassword], handover: [handoverScreen, bindHandover], teachers: [teachersScreen, bindTeachers] }[A.screen];
-  $root.innerHTML = header() + `<main id="m" class="${A.screen === 'main' ? '' : 'narrow'}">${scr[0]()}</main><nav class="mtabs">${[['a', '출석'], ['b', '기록'], ['menu', '메뉴']].map(([k, t]) => `<button data-tab="${k}" id="${k === 'menu' ? 'tMenu' : 'tab' + k}" class="${(k === 'menu' ? A.screen !== 'main' : A.screen === 'main' && (A.tab || 'a') === k) ? 'on' : ''}">${t}</button>`).join('')}</nav>` + (A.modal ? modalHtml() : '');
+  $root.innerHTML = header() + `<main id="m" class="${A.screen === 'main' ? '' : 'narrow'}">${scr[0]()}</main><nav class="mtabs">${[['a', '출석'], ['b', '기록'], ['menu', '메뉴']].map(([k, t]) => `<button data-tab="${k}" id="${k === 'menu' ? 'tMenu' : 'tab' + k}" class="${(k === 'menu' ? A.screen !== 'main' : A.screen === 'main' && (A.tab || 'a') === k) ? 'on' : ''}">${t}</button>`).join('')}</nav>` + (A.ed ? editorHtml() : '') + (A.modal ? modalHtml() : '');
   const main = $root.querySelector('#m'); scr[1](main);
   $root.querySelector('#mb').onclick = () => { A.screen = A.screen === 'main' ? 'menu' : 'main'; A.msg = ''; scrollTo(0, 0); render(); };
   $root.querySelector('#qPeer').onclick = () => go('peers');
@@ -346,6 +384,7 @@ function render() {
   $root.querySelector('#qXl').onclick = () => downloadXlsx(A.me.id, A.me.name);
   $root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { const k = b.dataset.tab; A.msg = ''; if (k === 'menu') A.screen = 'menu'; else { A.screen = 'main'; A.tab = k; } scrollTo(0, 0); render(); });
   $root.querySelector('#qOut').onclick = () => { A.modal = { text: '로그아웃할까요? 다음에 이름과 암호를 다시 입력해야 해요.', yes: '로그아웃', run: () => S.logout() }; render(); };
+  if (A.ed) bindEd();
   if (A.modal) { $root.querySelector('#mn').onclick = () => { A.modal = null; render(); }; $root.querySelector('#my').onclick = async () => { const f = A.modal.run; A.modal = null; render(); await f?.(); }; }
   window.scrollTo(0, y);
   maybeOfferInstall();
@@ -356,7 +395,7 @@ function maybeOfferInstall() {
   if (!seen && !matchMedia('(min-width:900px)').matches) { A.modal = { text: '바탕화면에 앱을 추가할까요?', yes: '추가하기', run: () => { A.screen = 'menu'; installAction(); } }; render(); }
 }
 function syncMonths() {
-  if (!A.me) return; const t = L.monthOf(TODAY()), wk = [L.monthOf(A.mon), L.monthOf(L.add(A.mon, 5)), L.monthOf(A.cur), t, L.prevMonth(t)], ms = [...new Set(wk)].sort();
+  if (!A.me) return; const t = L.monthOf(TODAY()), wk = [L.monthOf(A.mon), L.monthOf(L.add(A.mon, 5)), L.monthOf(A.cur), t, L.prevMonth(t), ...(A.ed?.date ? [L.monthOf(A.ed.date)] : [])], ms = [...new Set(wk)].sort();
   if (ms.join() === A.months.join()) return; A.months = ms; A.recUnsub?.();
   A.recUnsub = S.subRecords(ms, list => { A.online = true; A.rec = new Map(list.map(r => [r.id, r])); soft(); }, connErr);
 }
