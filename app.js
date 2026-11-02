@@ -5,7 +5,7 @@ const $root = document.getElementById('root'), TODAY = () => L.today();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const PC = { 정상: ['#eff6ff', '#2563eb', '#16a34a'], 소급: ['#fff8e8', '#d98a1f', '#d98a1f'], 송영: ['#ecfeff', '#0e7490', '#0e7490'], 인정: ['#f5f0ff', '#6d3fc4', '#6d3fc4'] };
 const SVG = { cal: '<path d="M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 15l2 2 4-4"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', users: '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 2.5-6 6-6s6 2.500 6 6M16 5a3.500 3.500 0 0 1 0 6.500M18 14.500c2 .7 3 2.600 3 5.500"/>', key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>', file: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 12l6 6M15 12l-6 6"/>', phone: '<rect x="7" y="2.500" width="10" height="19" rx="2"/><path d="M11 18.500h2"/>', swap: '<path d="M4 8h15M15 4l4 4-4 4M20 16H5M9 12l-4 4 4 4"/>', cog: '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.500 2.500-6 6-6 1 0 2 .2 2.800.6"/><circle cx="17.500" cy="17.500" r="2.500"/><path d="M17.500 13v2M17.500 20v2M13 17.500h2M20 17.500h2"/>', out: '<path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M15 8l4 4-4 4M19 12H9"/>' };
-const A = { phase: 'loading', authMode: 'login', err: '', msg: '', busy: false, me: null, teachers: [], students: [], rec: new Map(), months: [], unsub: [], recUnsub: null, screen: 'main', cur: TODAY(), mon: L.mondayOf(TODAY()), filter: '전체', open: {}, edit: {}, adding: false, ed: null, peer: '', ack: {}, online: true, mgr: '', draft: null, from: TODAY(), sErr: '', sMsg: '', hF: '', hS: '전체', hT: '', hD: TODAY(), hErr: '', hMsg: '', tErr: '', tMsg: '', code: null, modal: null, installEvt: null };
+const A = { phase: 'loading', authMode: 'login', err: '', msg: '', busy: false, me: null, teachers: [], students: [], rec: new Map(), months: [], unsub: [], recUnsub: null, screen: 'main', cur: TODAY(), mon: L.mondayOf(TODAY()), filter: '전체', open: {}, edit: {}, adding: false, ed: null, delPop: null, peer: '', ack: {}, online: true, mgr: '', draft: null, from: TODAY(), sErr: '', sMsg: '', hF: '', hS: '전체', hT: '', hD: TODAY(), hErr: '', hMsg: '', tErr: '', tMsg: '', code: null, modal: null, installEvt: null };
 const recs = () => [...A.rec.values()];
 const toast = m => { const t = document.getElementById('tst'); t.innerHTML = `<div class="toast">${esc(m)}</div>`; setTimeout(() => t.innerHTML = '', 2600); };
 const fail = e => { console.error(e); toast(e?.message && /[가-힣]/.test(e.message) ? e.message : '저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'); };
@@ -140,6 +140,13 @@ function pullEd() {
   if ($('.ed .ts')) { x.s = $('.ed .ts').value; x.e = $('.ed .te').value; }
   const h = readHours($('.ed .hf')); if (h.h) x.h = h.h;
 }
+const dayRecs = (d, sid) => recs().filter(x => x.date === d && x.sid === sid && x.tid === A.me.id && x.done && !x.removed);
+const askDel = d => { if (A.filter !== '전체' && dayRecs(d, A.filter).length) A.delPop = { date: d, sid: A.filter }; };
+const TR = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:4px"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
+function delHtml() {
+  const p = A.delPop, list = dayRecs(p.date, p.sid); if (!list.length) { A.delPop = null; return ''; }
+  return `<div class="back"><div class="card ed"><div class="edt" style="padding-right:0">${esc(list[0].sname)} · ${dl(p.date)}</div><div class="meta" style="margin:6px 0 10px">이 기록을 삭제할까요?</div>${list.map(x => `<div class="delr"><span>${x.pay}결제 · ${L.fmt(x.h)}</span><button class="dpY" data-r="${esc(x.id)}" style="color:#c62828;border-color:#fecaca">${TR}삭제</button></div>`).join('')}<button id="dpN" class="wide" style="margin:8px 0 0">취소</button></div></div>`;
+}
 const dropRec = o => (o.custom || o.id.startsWith('ack_')) ? S.removeRecord(o.id) : (() => { const { saved, ...b } = o; return S.saveRecord({ ...b, staff: b.staff || A.me.name, tid: A.me.id, tname: A.me.name, updatedAt: Date.now(), bulk: false, done: false, removed: true }); })();
 function saveEd() {
   pullEd(); const x = A.ed, fail2 = m => { x.err = m; render(); }, ack = x.pay === '인정', h = readHours($root.querySelector('.ed .hf')), o = x.orig;
@@ -192,13 +199,13 @@ function bindMain(r) {
   const cardsNow = () => L.cardsFor(A.cur, A.me.id, A.students, recs());
   r.querySelector('#pv').onclick = () => { A.mon = L.add(A.mon, -7); A.cur = A.mon; A.adding = false; syncMonths(); render(); };
   r.querySelector('#nx').onclick = () => { A.mon = L.add(A.mon, 7); A.cur = A.mon; A.adding = false; syncMonths(); render(); };
-  r.querySelectorAll('.dc').forEach(b => b.onclick = () => { A.cur = b.dataset.d; A.adding = false; syncMonths(); render(); });
+  r.querySelectorAll('.dc').forEach(b => b.onclick = () => { A.cur = b.dataset.d; A.adding = false; askDel(b.dataset.d); syncMonths(); render(); });
   const toMonth = mo => { let d = mo === L.monthOf(TODAY()) ? TODAY() : mo + '-01'; if (L.weekday(d) === 0) d = L.add(d, 1); A.cur = d; A.mon = L.mondayOf(d); A.adding = false; syncMonths(); render(); };
   r.querySelector('#cp').onclick = () => toMonth(L.prevMonth(L.monthOf(A.cur)));
   r.querySelector('#cn').onclick = () => toMonth(L.add(L.lastDay(L.monthOf(A.cur)), 1).slice(0, 7));
   r.querySelectorAll('.bulkGo').forEach(b => b.onclick = () => { const m = L.monthOf(A.cur), list = bulkTargets(m); if (!list.length) return toast('일괄 출석할 일정이 없어요.'); A.modal = { text: `${+m.slice(5)}월 일정 ${list.length}건을 출석 처리할까요? 공휴일과 일요일, 오늘 이후 날짜, 이미 입력하거나 지운 날은 빠져요.`, yes: '출석 처리', run: () => Promise.all(list.map(c => { const { saved, ...base } = c; return S.saveRecord({ ...base, staff: base.staff || A.me.name, tid: A.me.id, tname: A.me.name, updatedAt: Date.now(), done: true, bulk: true }); })).then(() => toast(`${list.length}건을 출석 처리했어요.`)).catch(fail) }; render(); });
   r.querySelectorAll('.bulkUn').forEach(b => b.onclick = () => { const m = L.monthOf(A.cur), list = recs().filter(x => x.month === m && x.tid === A.me.id && x.bulk === true); if (!list.length) return toast('취소할 일괄 출석이 없어요.'); A.modal = { text: `${+m.slice(5)}월 일괄 출석 ${list.length}건을 취소할까요? 고친 기록은 그대로 남아요.`, yes: '일괄 취소', run: () => Promise.all(list.map(x => S.removeRecord(x.id))).then(() => toast(`${list.length}건을 취소했어요.`)).catch(fail) }; render(); });
-  r.querySelectorAll('.cd2').forEach(b => b.onclick = () => { A.cur = b.dataset.d; A.mon = L.mondayOf(A.cur); A.adding = false; syncMonths(); render(); });
+  r.querySelectorAll('.cd2').forEach(b => b.onclick = () => { A.cur = b.dataset.d; A.mon = L.mondayOf(A.cur); A.adding = false; askDel(b.dataset.d); syncMonths(); render(); });
   r.querySelectorAll('.fl').forEach(b => b.onclick = () => { A.filter = b.dataset.id; render(); });
   const go = d => { A.cur = d; A.mon = L.mondayOf(d); syncMonths(); render(); };
   const gt = r.querySelector('#goToday'); if (gt) gt.onclick = () => go(TODAY());
@@ -380,7 +387,7 @@ function render() {
   if (A.phase === 'setup' || A.phase === 'auth') { const vals = {}; ['n', 'p', 'c'].forEach(i => { const e = $root.querySelector('#' + i); if (e) vals[i] = e.value; }); $root.innerHTML = authScreen(); Object.entries(vals).forEach(([i, v]) => { const e = $root.querySelector('#' + i); if (e) e.value = v; }); return bindAuth($root); }
   if (A.phase === 'suspended') { $root.innerHTML = suspendedScreen(); $root.querySelector('#so').onclick = () => S.logout(); return; }
   const scr = { main: [mainScreen, bindMain], menu: [menuScreen, bindMenu], schedule: [scheduleScreen, bindSchedule], peers: [peersScreen, bindPeers], password: [passwordScreen, bindPassword], handover: [handoverScreen, bindHandover], teachers: [teachersScreen, bindTeachers] }[A.screen];
-  $root.innerHTML = header() + `<main id="m" class="${A.screen === 'main' ? '' : 'narrow'}">${scr[0]()}</main><nav class="mtabs">${[['a', '출석'], ['b', '기록'], ['menu', '메뉴']].map(([k, t]) => `<button data-tab="${k}" id="${k === 'menu' ? 'tMenu' : 'tab' + k}" class="${(k === 'menu' ? A.screen !== 'main' : A.screen === 'main' && (A.tab || 'a') === k) ? 'on' : ''}">${t}</button>`).join('')}</nav>` + (A.ed ? editorHtml() : '') + (A.modal ? modalHtml() : '');
+  $root.innerHTML = header() + `<main id="m" class="${A.screen === 'main' ? '' : 'narrow'}">${scr[0]()}</main><nav class="mtabs">${[['a', '출석'], ['b', '기록'], ['menu', '메뉴']].map(([k, t]) => `<button data-tab="${k}" id="${k === 'menu' ? 'tMenu' : 'tab' + k}" class="${(k === 'menu' ? A.screen !== 'main' : A.screen === 'main' && (A.tab || 'a') === k) ? 'on' : ''}">${t}</button>`).join('')}</nav>` + (A.ed ? editorHtml() : '') + (A.delPop ? delHtml() : '') + (A.modal ? modalHtml() : '');
   const main = $root.querySelector('#m'); scr[1](main);
   $root.querySelector('#mb').onclick = () => { A.screen = A.screen === 'main' ? 'menu' : 'main'; A.msg = ''; scrollTo(0, 0); render(); };
   $root.querySelector('#qPeer').onclick = () => go('peers');
@@ -389,6 +396,7 @@ function render() {
   $root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { const k = b.dataset.tab; A.msg = ''; if (k === 'menu') A.screen = 'menu'; else { A.screen = 'main'; A.tab = k; } scrollTo(0, 0); render(); });
   $root.querySelector('#qOut').onclick = () => { A.modal = { text: '로그아웃할까요? 다음에 이름과 암호를 다시 입력해야 해요.', yes: '로그아웃', run: () => S.logout() }; render(); };
   if (A.ed) bindEd();
+  if (A.delPop) { $root.querySelector('#dpN').onclick = () => { A.delPop = null; render(); }; $root.querySelectorAll('.dpY').forEach(b => b.onclick = () => { const x = A.rec.get(b.dataset.r); A.delPop = null; if (x) dropRec(x).then(() => toast('삭제했어요')).catch(fail); render(); }); }
   if (A.modal) { $root.querySelector('#mn').onclick = () => { A.modal = null; render(); }; $root.querySelector('#my').onclick = async () => { const f = A.modal.run; A.modal = null; render(); await f?.(); }; }
   window.scrollTo(0, y);
   maybeOfferInstall();
