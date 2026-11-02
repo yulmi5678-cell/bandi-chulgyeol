@@ -175,7 +175,7 @@ function bindEd() {
 }
 function ackCard(s, m) {
   const id = L.ackId(m, s.id), r = A.rec.get(id), f = A.ack[id];
-  if (f) return `<div class="card" data-a="${esc(id)}" data-s="${esc(s.id)}"><div class="nm" style="margin-bottom:8px">${esc(s.name)}</div><label class="field">결제 날짜<input class="ad" type="date" min="${m}-01" max="${L.lastDay(m)}" value="${esc(f.date)}"></label>${hoursField('a_' + s.id.replace(/\W/g, '_'), f.h, 16, '인정 시간')}${f.err ? `<p class="err">${esc(f.err)}</p>` : ''}<div class="two"><button class="asv p">저장</button><button class="acn">취소</button></div></div>`;
+  if (f) return `<div class="card" style="position:relative" data-a="${esc(id)}" data-s="${esc(s.id)}"><button class="acn edx" aria-label="창 닫기">✕</button><div class="nm" style="margin-bottom:8px">${esc(s.name)}</div><label class="field">결제 날짜<input class="ad" type="date" min="${m}-01" max="${L.lastDay(m)}" value="${esc(f.date)}"></label>${hoursField('a_' + s.id.replace(/\W/g, '_'), f.h, 16, '인정 시간')}${f.err ? `<p class="err">${esc(f.err)}</p>` : ''}<button class="asv p wide" style="margin:0">저장</button></div>`;
   if (r) return `<div class="card" data-a="${esc(id)}" data-s="${esc(s.id)}"><div class="nm" style="color:#6d3fc4">✓ ${esc(s.name)}</div><div class="meta" style="margin-bottom:8px">${L.label(r.date)} 인정결제 완료 · ${L.fmt(r.h)}</div><div class="two"><button class="aed">수정</button><button class="adl">지우기</button></div></div>`;
   return `<div class="card" data-a="${esc(id)}" data-s="${esc(s.id)}"><div class="rw"><div class="nm">${sn(s.id, s.name)}</div><button class="aadd" style="color:#6d3fc4;background:#f5f0ff;border-color:#6d3fc4;padding:0 4px">입력</button></div></div>`;
 }
