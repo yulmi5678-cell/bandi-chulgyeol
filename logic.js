@@ -70,7 +70,7 @@ export function monthLog(records, month, tid) { return records.filter(r => r.mon
 export function exportRows(records, month, tid, name = '') {
   const l = monthLog(records, month, tid), rows = [[`${name} 선생님 출결부`, `${month.slice(0, 4)}년 ${+month.slice(5)}월`], ['일자', '요일', '학생명', '제공인력', '시작 시간', '종료 시간', '당일시간', '당월누적', '결제구분', '소급 사유']];
   for (const r of l) rows.push([r.date, WD[weekday(r.date)], r.sname, r.staff || '', r.s || '', r.e || '', fmt(r.h), fmt(cumulative(records, r.sid, r.date)), r.pay + '결제', r.pay === '소급' ? (r.reason === '기타' ? r.etc : r.reason) || '' : '']);
-  const t = totals(l); rows.push([]); rows.push(['합계', '', '', '', '', '', fmt(Object.values(t).reduce((a, b) => a + b, 0))]);
-  for (const p of ALL_PAYS) rows.push([p + '결제', '', '', '', '', '', fmt(t[p])]);
+  rows.push([]); rows.push(['학생별 합계']);
+  for (const [sid, sname] of new Map(l.map(r => [r.sid, r.sname]))) { const t = totals(records.filter(r => r.sid === sid && r.month === month)); rows.push([sname, '합계', '', '', '', '', fmt(Object.values(t).reduce((a, b) => a + b, 0))]); for (const p of ALL_PAYS) rows.push(['', p + '결제', '', '', '', '', fmt(t[p])]); }
   return rows;
 }
