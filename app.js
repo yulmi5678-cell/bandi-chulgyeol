@@ -56,7 +56,7 @@ function bindHours(root, onChange) {
 function readHours(f) { const ht = f.querySelector('.ht'), max = +f.dataset.max; return L.parseHours(ht.value, max); }
 
 function header() {
-  return `<header class="top"><img src="icon-192.png" alt="반디 로고"><div class="tt"><div class="ttl">반디 방과후활동 출결부</div><div class="who">${esc(A.me.name)} 선생님${A.me.boss ? ' · 대표' : ''}</div></div><div class="qb"><button id="qPeer" class="qo">동료 출결부</button><button id="qApp" class="qs">앱 추가</button><span class="qg" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span><button id="qSch" class="qi pco">시간표·학생</button>${A.me.boss ? '<button id="qTe" class="qv pco">선생님 관리</button>' : ''}<button id="mb">${A.screen === 'main' ? '메뉴' : '출결부'}</button></div></header>`;
+  return `<header class="top"><img src="icon-192.png" alt="반디 로고"><div class="tt"><div class="ttl">반디 방과후활동 출결부</div><div class="who">${esc(A.me.name)} 선생님${A.me.boss ? ' · 대표' : ''}</div></div><div class="qb"><button id="qPeer" class="qo">동료 출결부</button><button id="qApp" class="qs">앱 추가</button><span class="qg" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span><button id="qSch" class="qi pco">시간표·학생</button><button id="qXl" class="qx pco">엑셀 다운로드</button><button id="qPw" class="qk pco">내 암호</button><button id="qOut" class="qk pco">로그아웃</button><button id="mb">${A.screen === 'main' ? '메뉴' : '출결부'}</button></div></header>`;
 }
 function dateCell(d) {
   const cards = L.cardsFor(d, A.me.id, A.students, recs()), live = cards.filter(c => !c.removed), ok = live.length && live.every(c => c.done), isT = d === TODAY(), hol = L.HOLIDAYS[d], w = L.weekday(d);
@@ -316,7 +316,9 @@ function render() {
   $root.querySelector('#qPeer').onclick = () => go('peers');
   $root.querySelector('#qApp').onclick = () => { A.screen = 'menu'; A.msg = ''; scrollTo(0, 0); installAction(); if (A.screen === 'menu') render(); };
   $root.querySelector('#qSch').onclick = () => go('schedule');
-  const qTe = $root.querySelector('#qTe'); if (qTe) qTe.onclick = openTeachers;
+  $root.querySelector('#qXl').onclick = () => downloadXlsx(A.me.id, A.me.name);
+  $root.querySelector('#qPw').onclick = () => go('password');
+  $root.querySelector('#qOut').onclick = () => { A.modal = { text: '로그아웃할까요? 다음에 이름과 암호를 다시 입력해야 해요.', yes: '로그아웃', run: () => S.logout() }; render(); };
   if (A.modal) { $root.querySelector('#mn').onclick = () => { A.modal = null; render(); }; $root.querySelector('#my').onclick = async () => { const f = A.modal.run; A.modal = null; render(); await f?.(); }; }
   window.scrollTo(0, y);
   maybeOfferInstall();
