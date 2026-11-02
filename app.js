@@ -68,6 +68,15 @@ function dateCell(d) {
   const tag = isT ? (hol ? '오늘·공휴일' : ok ? '오늘 ' + CK : '오늘') : ok ? CK : '';
   return `<button class="dc" data-d="${d}" style="background:${bg};color:${fg};border:${bd}"><small>${tag}</small><b>${L.md(d)}</b><b>${L.WD[w]}</b></button>`;
 }
+const bulkBtns = () => '<div class="two bulk"><button class="bulkGo p">이 달 일괄 출석</button><button class="bulkUn">일괄 취소</button></div>';
+function bulkTargets(m) {
+  const out = [], t = TODAY(), end = L.lastDay(m) < t ? L.lastDay(m) : t;
+  for (let d = m + '-01'; d <= end; d = L.add(d, 1)) {
+    if (L.HOLIDAYS[d] || L.weekday(d) === 0) continue;
+    L.cardsFor(d, A.me.id, A.students, recs()).forEach(c => { if (!c.saved) out.push(c); });
+  }
+  return out;
+}
 function monthCal(m) {
   const first = L.weekday(m + '-01'), last = L.lastDay(m), cells = [];
   for (let i = 0; i < first; i++) cells.push('<span></span>');
@@ -89,13 +98,13 @@ function mainScreen() {
   const wk = Array.from({ length: 6 }, (_, i) => L.add(A.mon, i));
   const banners = `${todayLeft ? `<button class="ban" id="goToday" style="background:#7c3aed;color:#fff">오늘 출석 ${todayLeft}건이 남았어요</button>` : `<div class="ban" style="background:var(--sky);color:var(--navy)">오늘 남은 출석이 없어요 ✓</div>`}${pastN ? `<button class="ban" id="goPast" style="background:#fff8e8;color:#a96a12">지난 날짜에 안 누른 출석 ${pastN}건이 있어요 · ${L.md(past[0].date)} 보기</button>` : ''}`;
   const left = `${banners}<div class="h">${L.label(d)}까지 누적</div><div class="cg">${names.length ? names.map(s => { const c = L.cumulative(recs(), s.id, d), lim = s.limit || 66; return `<div class="cc"><div class="cn">${sn(s.id, s.name)}</div><div class="cv">${L.fmt(c)}</div><div class="cs">남은 ${L.fmt(Math.max(lim - c, 0))} / ${L.fmt(lim)}</div></div>`; }).join('') : '<div class="cc" style="grid-column:1/-1"><div class="meta">아직 학생이 없어요. 메뉴의 시간표와 학생 관리에서 추가해 주세요.</div></div>'}</div>
-  <div class="nav"><button id="pv" aria-label="이전 주">‹</button><div>${L.md(wk[0])} ~ ${L.md(wk[5])}</div><button id="nx" aria-label="다음 주">›</button></div><div class="dd">${wk.map(dateCell).join('')}</div><div class="calw"><div class="calnav"><button id="cp" aria-label="이전 달">‹</button><b>${m.slice(0, 4)}년 ${+m.slice(5)}월</b><button id="cn" aria-label="다음 달">›</button></div>${monthCal(m)}</div>
+  <div class="nav"><button id="pv" aria-label="이전 주">‹</button><div>${L.md(wk[0])} ~ ${L.md(wk[5])}</div><button id="nx" aria-label="다음 주">›</button></div><div class="dd">${wk.map(dateCell).join('')}</div><div class="calw"><div class="calnav"><button id="cp" aria-label="이전 달">‹</button><b>${m.slice(0, 4)}년 ${+m.slice(5)}월</b><button id="cn" aria-label="다음 달">›</button></div>${monthCal(m)}${bulkBtns()}</div>
   </section><section class="col ca">${L.HOLIDAYS[d] ? `<div class="ok" style="background:#fdecea;color:#c62828">${esc(L.HOLIDAYS[d])} 공휴일이에요. 운영한 날이면 출석을 누르면 돼요.</div>` : ''}
   <div class="chips">${['전체', ...names.map(s => s.id)].map(id => `<button class="fl ${id === A.filter ? 'on' : ''}" data-id="${esc(id)}" style="${id !== '전체' ? `background:${L.colorOf(names.find(n => n.id === id), id)};color:#fff;border-color:transparent;${id === A.filter ? 'outline:3px solid #1e293b' : ''}` : ''}">${esc(id === '전체' ? '전체' : names.find(n => n.id === id).name)}</button>`).join('')}</div>
   ${view.length ? view.map(card).join('') : `<div class="meta" style="margin:0 2px 10px">이 날은 일정이 없어요.</div>`}
   ${A.adding ? addForm(names) : ''}<button id="addBtn" class="wide lite">+ 일정 추가</button><div class="h">${+m.slice(5)}월 인정결제 (학생별 월 1회)</div>${names.map(s => ackCard(s, m)).join('')}`;
   const right = `<div class="h">${+m.slice(5)}월 학생별 합계</div>${stuTot(names, m)}
-  <div class="h">${+m.slice(5)}월 기록</div><div class="field"><input id="mp" type="month" aria-label="달 고르기" value="${m}"></div><div class="card">${log.length ? log.map(logRow).join('') : '<div class="meta">아직 출석한 기록이 없어요.</div>'}</div>`;
+  <div class="h">${+m.slice(5)}월 기록</div><div class="field"><input id="mp" type="month" aria-label="달 고르기" value="${m}"></div><div class="mo">${bulkBtns()}</div><div class="card">${log.length ? log.map(logRow).join('') : '<div class="meta">아직 출석한 기록이 없어요.</div>'}</div>`;
   return `<div class="cols t-${A.tab || 'a'}"><section class="col ca">${left}</section><section class="col cb">${right}</section></div>`;
 }
 function card(c) {
@@ -125,7 +134,7 @@ function logRow(r) {
 }
 function saveCard(c, patch) {
   const { saved, ...base } = c; const staff = base.staff || A.me.name;
-  return S.saveRecord({ ...base, staff, tid: A.me.id, tname: A.me.name, updatedAt: Date.now(), ...patch }).catch(fail);
+  return S.saveRecord({ ...base, staff, tid: A.me.id, tname: A.me.name, updatedAt: Date.now(), bulk: false, ...patch }).catch(fail);
 }
 function bindMain(r) {
   const cardsNow = () => L.cardsFor(A.cur, A.me.id, A.students, recs());
@@ -135,6 +144,8 @@ function bindMain(r) {
   const toMonth = mo => { let d = mo === L.monthOf(TODAY()) ? TODAY() : mo + '-01'; if (L.weekday(d) === 0) d = L.add(d, 1); A.cur = d; A.mon = L.mondayOf(d); A.adding = false; syncMonths(); render(); };
   r.querySelector('#cp').onclick = () => toMonth(L.prevMonth(L.monthOf(A.cur)));
   r.querySelector('#cn').onclick = () => toMonth(L.add(L.lastDay(L.monthOf(A.cur)), 1).slice(0, 7));
+  r.querySelectorAll('.bulkGo').forEach(b => b.onclick = () => { const m = L.monthOf(A.cur), list = bulkTargets(m); if (!list.length) return toast('일괄 출석할 일정이 없어요.'); A.modal = { text: `${+m.slice(5)}월 일정 ${list.length}건을 출석 처리할까요? 공휴일과 일요일, 오늘 이후 날짜, 이미 입력하거나 지운 날은 빠져요.`, yes: '출석 처리', run: () => Promise.all(list.map(c => { const { saved, ...base } = c; return S.saveRecord({ ...base, staff: base.staff || A.me.name, tid: A.me.id, tname: A.me.name, updatedAt: Date.now(), done: true, bulk: true }); })).then(() => toast(`${list.length}건을 출석 처리했어요.`)).catch(fail) }; render(); });
+  r.querySelectorAll('.bulkUn').forEach(b => b.onclick = () => { const m = L.monthOf(A.cur), list = recs().filter(x => x.month === m && x.tid === A.me.id && x.bulk === true); if (!list.length) return toast('취소할 일괄 출석이 없어요.'); A.modal = { text: `${+m.slice(5)}월 일괄 출석 ${list.length}건을 취소할까요? 고친 기록은 그대로 남아요.`, yes: '일괄 취소', run: () => Promise.all(list.map(x => S.removeRecord(x.id))).then(() => toast(`${list.length}건을 취소했어요.`)).catch(fail) }; render(); });
   r.querySelectorAll('.cd2').forEach(b => b.onclick = () => { A.cur = b.dataset.d; A.mon = L.mondayOf(A.cur); A.adding = false; syncMonths(); render(); });
   r.querySelectorAll('.fl').forEach(b => b.onclick = () => { A.filter = b.dataset.id; render(); });
   const go = d => { A.cur = d; A.mon = L.mondayOf(d); syncMonths(); render(); };
@@ -186,8 +197,8 @@ function bindMain(r) {
   });
   r.querySelectorAll('[data-r]').forEach(el => {
     const x = A.rec.get(el.dataset.r), { id: _i, ...d } = x || {}; if (!x || x.pay === '인정') return;
-    el.querySelector('.lp').onchange = e => { e.target.blur(); const p = e.target.value; if (p === '소급' && !x.reason) { A.cur = x.date; A.mon = L.mondayOf(x.date); A.open[x.id] = true; A.edit[x.id] = { err: '소급 사유를 골라 주세요.' }; } S.saveRecord({ ...x, pay: p, ...(p === '소급' ? {} : { reason: '', etc: '' }) }).catch(fail); };
-    const saveH = e => { e.target.blur(); const hh = +el.querySelector('.lhh').value, mi = hh === 10 ? 0 : +el.querySelector('.lmm').value, h = hh + mi / 60; if (h <= 0) { toast('30분 이상으로 골라 주세요.'); return render(); } S.saveRecord({ ...x, h }).catch(fail); };
+    el.querySelector('.lp').onchange = e => { e.target.blur(); const p = e.target.value; if (p === '소급' && !x.reason) { A.cur = x.date; A.mon = L.mondayOf(x.date); A.open[x.id] = true; A.edit[x.id] = { err: '소급 사유를 골라 주세요.' }; } S.saveRecord({ ...x, bulk: false, pay: p, ...(p === '소급' ? {} : { reason: '', etc: '' }) }).catch(fail); };
+    const saveH = e => { e.target.blur(); const hh = +el.querySelector('.lhh').value, mi = hh === 10 ? 0 : +el.querySelector('.lmm').value, h = hh + mi / 60; if (h <= 0) { toast('30분 이상으로 골라 주세요.'); return render(); } S.saveRecord({ ...x, h, bulk: false }).catch(fail); };
     el.querySelector('.lhh').onchange = saveH; el.querySelector('.lmm').onchange = saveH;
     el.querySelector('.lc').onclick = () => { A.modal = { text: `${x.sname} ${L.label(x.date)} 기록을 삭제할까요?`, yes: '삭제', run: () => (x.custom ? S.removeRecord(x.id) : S.saveRecord({ ...x, done: false, removed: true })).catch(fail) }; render(); };
   });
