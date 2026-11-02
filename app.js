@@ -89,7 +89,7 @@ function mainScreen() {
   const wk = Array.from({ length: 6 }, (_, i) => L.add(A.mon, i));
   const banners = `${todayLeft ? `<button class="ban" id="goToday" style="background:#7c3aed;color:#fff">오늘 출석 ${todayLeft}건이 남았어요</button>` : `<div class="ban" style="background:var(--sky);color:var(--navy)">오늘 남은 출석이 없어요 ✓</div>`}${pastN ? `<button class="ban" id="goPast" style="background:#fff8e8;color:#a96a12">지난 날짜에 안 누른 출석 ${pastN}건이 있어요 · ${L.md(past[0].date)} 보기</button>` : ''}`;
   const left = `${banners}<div class="h">${L.label(d)}까지 누적</div><div class="cg">${names.length ? names.map(s => { const c = L.cumulative(recs(), s.id, d), lim = s.limit || 66; return `<div class="cc"><div class="cn">${sn(s.id, s.name)}</div><div class="cv">${L.fmt(c)}</div><div class="cs">남은 ${L.fmt(Math.max(lim - c, 0))} / ${L.fmt(lim)}</div></div>`; }).join('') : '<div class="cc" style="grid-column:1/-1"><div class="meta">아직 학생이 없어요. 메뉴의 시간표와 학생 관리에서 추가해 주세요.</div></div>'}</div>
-  <div class="nav"><button id="pv" aria-label="이전 주">‹</button><div>${L.md(wk[0])} ~ ${L.md(wk[5])}</div><button id="nx" aria-label="다음 주">›</button></div><div class="dd">${wk.map(dateCell).join('')}</div><div class="calw"><div class="h">${+m.slice(5)}월 달력</div>${monthCal(m)}</div>
+  <div class="nav"><button id="pv" aria-label="이전 주">‹</button><div>${L.md(wk[0])} ~ ${L.md(wk[5])}</div><button id="nx" aria-label="다음 주">›</button></div><div class="dd">${wk.map(dateCell).join('')}</div><div class="calw"><div class="calnav"><button id="cp" aria-label="이전 달">‹</button><b>${m.slice(0, 4)}년 ${+m.slice(5)}월</b><button id="cn" aria-label="다음 달">›</button></div>${monthCal(m)}</div>
   </section><section class="col ca">${L.HOLIDAYS[d] ? `<div class="ok" style="background:#fdecea;color:#c62828">${esc(L.HOLIDAYS[d])} 공휴일이에요. 운영한 날이면 출석을 누르면 돼요.</div>` : ''}
   <div class="chips">${['전체', ...names.map(s => s.id)].map(id => `<button class="fl ${id === A.filter ? 'on' : ''}" data-id="${esc(id)}" style="${id !== '전체' ? `background:${L.colorOf(names.find(n => n.id === id), id)};color:#fff;border-color:transparent;${id === A.filter ? 'outline:3px solid #1e293b' : ''}` : ''}">${esc(id === '전체' ? '전체' : names.find(n => n.id === id).name)}</button>`).join('')}</div>
   ${view.length ? view.map(card).join('') : `<div class="meta" style="margin:0 2px 10px">이 날은 일정이 없어요.</div>`}
@@ -121,7 +121,7 @@ function ackCard(s, m) {
 }
 function logRow(r) {
   const w = Math.floor(r.h), mm = r.h - w > 0, hol = L.HOLIDAYS[r.date], wd = L.weekday(r.date), max = r.pay === '인정' ? 16 : 10;
-  return `<div class="log" data-r="${esc(r.id)}"><div class="lh"><span style="color:${hol ? '#c62828' : wd === 6 ? '#2563eb' : 'inherit'}">${L.md(r.date)} (${L.WD[wd]})</span> ${sn(r.sid, r.sname)} · ${esc(r.staff || '')}</div><div class="meta">당일 ${L.fmt(r.h)} · 누적 <b>${L.fmt(L.cumulative(recs(), r.sid, r.date))}</b> · <span style="color:${PC[r.pay][1]};font-weight:600">${r.pay}결제</span>${r.pay === '소급' && r.reason ? ` · ${esc(r.reason === '기타' ? r.etc : r.reason)}` : ''}</div>${r.pay === '인정' ? '' : `<div class="lg"><select class="lp" aria-label="결제구분">${L.PAYS.map(p => `<option value="${p}" ${p === r.pay ? 'selected' : ''}>${p}결제</option>`).join('')}</select><select class="lh2" aria-label="기록 시간">${Array.from({ length: 2 * max }, (_, i) => (i + 1) / 2).map(h => `<option value="${h}" ${h === r.h ? 'selected' : ''}>${L.fmt(h)}</option>`).join('')}</select><button class="lc" aria-label="출석 취소">✕</button></div>`}</div>`;
+  return `<div class="log" data-r="${esc(r.id)}"><div class="lh"><span style="color:${hol ? '#c62828' : wd === 6 ? '#2563eb' : 'inherit'}">${L.md(r.date)} (${L.WD[wd]})</span> ${sn(r.sid, r.sname)} · ${esc(r.staff || '')}</div><div class="meta">당일 ${L.fmt(r.h)} · 누적 <b>${L.fmt(L.cumulative(recs(), r.sid, r.date))}</b> · <span style="color:${PC[r.pay][1]};font-weight:600">${r.pay}결제</span>${r.pay === '소급' && r.reason ? ` · ${esc(r.reason === '기타' ? r.etc : r.reason)}` : ''}</div>${r.pay === '인정' ? '' : `<div class="lg"><select class="lp" aria-label="결제구분">${L.PAYS.map(p => `<option value="${p}" ${p === r.pay ? 'selected' : ''}>${p}결제</option>`).join('')}</select><select class="lhh" aria-label="시간">${Array.from({ length: 11 }, (_, i) => `<option value="${i}" ${i === w ? 'selected' : ''}>${i}시간</option>`).join('')}</select><select class="lmm" aria-label="분"><option value="0" ${mm ? '' : 'selected'}>0분</option><option value="30" ${mm ? 'selected' : ''} ${w === 10 ? 'disabled' : ''}>30분</option></select><button class="lc cx" aria-label="기록 삭제"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button></div>`}</div>`;
 }
 function saveCard(c, patch) {
   const { saved, ...base } = c; const staff = base.staff || A.me.name;
@@ -132,6 +132,9 @@ function bindMain(r) {
   r.querySelector('#pv').onclick = () => { A.mon = L.add(A.mon, -7); A.cur = A.mon; A.adding = false; syncMonths(); render(); };
   r.querySelector('#nx').onclick = () => { A.mon = L.add(A.mon, 7); A.cur = A.mon; A.adding = false; syncMonths(); render(); };
   r.querySelectorAll('.dc').forEach(b => b.onclick = () => { A.cur = b.dataset.d; A.adding = false; syncMonths(); render(); });
+  const toMonth = mo => { let d = mo === L.monthOf(TODAY()) ? TODAY() : mo + '-01'; if (L.weekday(d) === 0) d = L.add(d, 1); A.cur = d; A.mon = L.mondayOf(d); A.adding = false; syncMonths(); render(); };
+  r.querySelector('#cp').onclick = () => toMonth(L.prevMonth(L.monthOf(A.cur)));
+  r.querySelector('#cn').onclick = () => toMonth(L.add(L.lastDay(L.monthOf(A.cur)), 1).slice(0, 7));
   r.querySelectorAll('.cd2').forEach(b => b.onclick = () => { A.cur = b.dataset.d; A.mon = L.mondayOf(A.cur); A.adding = false; syncMonths(); render(); });
   r.querySelectorAll('.fl').forEach(b => b.onclick = () => { A.filter = b.dataset.id; render(); });
   const go = d => { A.cur = d; A.mon = L.mondayOf(d); syncMonths(); render(); };
@@ -184,8 +187,9 @@ function bindMain(r) {
   r.querySelectorAll('[data-r]').forEach(el => {
     const x = A.rec.get(el.dataset.r), { id: _i, ...d } = x || {}; if (!x || x.pay === '인정') return;
     el.querySelector('.lp').onchange = e => { e.target.blur(); const p = e.target.value; if (p === '소급' && !x.reason) { A.cur = x.date; A.mon = L.mondayOf(x.date); A.open[x.id] = true; A.edit[x.id] = { err: '소급 사유를 골라 주세요.' }; } S.saveRecord({ ...x, pay: p, ...(p === '소급' ? {} : { reason: '', etc: '' }) }).catch(fail); };
-    el.querySelector('.lh2').onchange = e => { e.target.blur(); S.saveRecord({ ...x, h: +e.target.value }).catch(fail); };
-    el.querySelector('.lc').onclick = () => S.saveRecord({ ...x, done: false }).catch(fail);
+    const saveH = e => { e.target.blur(); const hh = +el.querySelector('.lhh').value, mi = hh === 10 ? 0 : +el.querySelector('.lmm').value, h = hh + mi / 60; if (h <= 0) { toast('30분 이상으로 골라 주세요.'); return render(); } S.saveRecord({ ...x, h }).catch(fail); };
+    el.querySelector('.lhh').onchange = saveH; el.querySelector('.lmm').onchange = saveH;
+    el.querySelector('.lc').onclick = () => { A.modal = { text: `${x.sname} ${L.label(x.date)} 기록을 삭제할까요?`, yes: '삭제', run: () => (x.custom ? S.removeRecord(x.id) : S.saveRecord({ ...x, done: false, removed: true })).catch(fail) }; render(); };
   });
 }
 const it = (id, name, icon, c, b) => `<button class="it" id="${id}" style="color:${c}"><span class="ic" style="background:${b}"><svg viewBox="0 0 24 24" aria-hidden="true">${SVG[icon]}</svg></span><span>${name}</span><span aria-hidden="true" style="color:#94a3b8">›</span></button>`;
