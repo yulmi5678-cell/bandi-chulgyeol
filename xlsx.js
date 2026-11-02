@@ -21,7 +21,7 @@ const x = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&l
 const col = i => String.fromCharCode(65 + i);
 export function buildXlsx(sheetName, rows, widths = []) {
   const sd = rows.map((r, ri) => `<row r="${ri + 1}">${r.map((v, ci) => {
-    const ref = col(ci) + (ri + 1), s = ri === 0 ? ' s="1"' : "";
+    const ref = col(ci) + (ri + 1), s = ri <= 1 ? ' s="1"' : "";
     return typeof v === "number" ? `<c r="${ref}"${s}><v>${v}</v></c>` : `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
   }).join("")}</row>`).join("");
   const cols = widths.length ? `<cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>` : "";
