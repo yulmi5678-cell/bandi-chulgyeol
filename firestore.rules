@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function memberPath() { return /databases/$(database)/documents/members/$(request.auth.uid); }
+    function myTid() { return get(memberPath()).data.tid; }
+    function myTeacher() { return get(/databases/$(database)/documents/teachers/$(myTid())).data; }
+    function isActive() { return signedIn() && exists(memberPath()) && myTeacher().uid == request.auth.uid && myTeacher().active == true; }
+    function isBoss() { return isActive() && myTeacher().boss == true; }
+    function initPath() { return /databases/$(database)/documents/meta/init; }
+    function bootstrapping() { return signedIn() && !exists(initPath()) && existsAfter(initPath()); }
+    function validCodeAfter() {
+      return signedIn() && existsAfter(/databases/$(database)/documents/joinCodes/$(getAfter(memberPath()).data.joinHash));
+    }
+
+    match /meta/init { allow get: if true; allow create: if signedIn(); allow list, update, delete: if false; }
+
+    match /logins/{key} {
+      allow get: if true;
+      allow list, delete: if false;
+      allow create: if signedIn() && request.resource.data.tid == getAfter(memberPath()).data.tid
+        && getAfter(/databases/$(database)/documents/teachers/$(request.resource.data.tid)).data.uid == request.auth.uid;
+      allow update: if isBoss();
+    }
+
+    match /joinCodes/{hash} { allow read: if false; allow create, delete: if isBoss() || bootstrapping(); allow update: if false; }
+    match /settings/join { allow read: if isBoss(); allow write: if isBoss() || bootstrapping(); }
+
+    match /members/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, delete, update: if false;
+      allow create: if signedIn() && request.auth.uid == uid
+        && getAfter(/databases/$(database)/documents/teachers/$(request.resource.data.tid)).data.uid == uid
+        && existsAfter(/databases/$(database)/documents/joinCodes/$(request.resource.data.joinHash));
+    }
+
+    match /teachers/{tid} {
+      allow read: if isActive();
+      allow delete: if false;
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && request.resource.data.active == true
+        && request.resource.data.resetAllowed == false
+        && ((request.resource.data.boss == false && validCodeAfter()) || (request.resource.data.boss == true && bootstrapping()));
+      allow update: if isBoss() || (signedIn() && resource.data.resetAllowed == true
+        && request.resource.data.uid == request.auth.uid && request.resource.data.resetAllowed == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['uid','resetAllowed'])
+        && validCodeAfter());
+    }
+
+    match /students/{sid} {
+      allow read: if isActive();
+      allow create: if isActive() && request.resource.data.ownerTid == myTid();
+      allow update: if isActive() && (resource.data.ownerTid == myTid() || isBoss());
+      allow delete: if false;
+    }
+
+    match /records/{rid} {
+      allow read: if isActive();
+      allow create: if isActive() && request.resource.data.tid == myTid() && request.resource.data.h is number && request.resource.data.h <= 16;
+      allow update: if isActive() && resource.data.tid == myTid() && request.resource.data.tid == myTid() && request.resource.data.h is number && request.resource.data.h <= 16;
+      allow delete: if isActive() && resource.data.tid == myTid();
+    }
+  }
+}
