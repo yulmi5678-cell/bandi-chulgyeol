@@ -16,6 +16,7 @@ let later = false;
 function soft() { if (hasFocusInput()) { later = true; return; } render(); }
 document.addEventListener('focusout', () => setTimeout(() => { if (later && !hasFocusInput()) { later = false; render(); } }, 80));
 
+const settle = () => new Promise(r => { document.activeElement?.blur?.(); setTimeout(r, 120); });
 function hoursField(id, h, max, label = '기록 시간') {
   const w = Math.floor(h), m = h - w > 0 ? 30 : 0;
   return `<div class="field hf" data-max="${max}" id="${id}"><span>${esc(label)}</span><div class="two"><select class="hh" aria-label="시간">${Array.from({ length: max + 1 }, (_, i) => `<option value="${i}" ${i === w ? 'selected' : ''}>${i}시간</option>`).join('')}</select><select class="mm" aria-label="분"><option value="0" ${!m ? 'selected' : ''}>00분</option><option value="30" ${m ? 'selected' : ''} ${w === max ? 'disabled' : ''}>30분</option></select></div><input class="ht" inputmode="text" aria-label="직접 입력" placeholder="직접 입력 (예: 2:30)" value="${w}:${m ? '30' : '00'}"></div>`;
@@ -185,6 +186,7 @@ function scheduleScreen() {
 function bindSchedule(r) {
   r.querySelector('#bk').onclick = () => go('menu');
   r.querySelector('#as').onclick = async () => {
+    await settle();
     const n = r.querySelector('#ns').value.trim(); A.sErr = ''; A.sMsg = '';
     if (n.length < 2) { A.sErr = '학생 이름을 입력해 주세요.'; return render(); }
     if (myStudents().some(s => s.name === n)) { A.sErr = '이미 있는 이름이에요.'; return render(); }
@@ -245,7 +247,7 @@ function teachersScreen() {
 }
 function bindTeachers(r) {
   r.querySelector('#bk').onclick = () => { A.tErr = ''; A.tMsg = ''; go('menu'); };
-  r.querySelector('#jgo').onclick = () => { const c = r.querySelector('#jc').value.trim(); A.tErr = ''; A.tMsg = ''; if (c.length < 6) { A.tErr = '코드는 6자 이상으로 입력해 주세요.'; return render(); } r.querySelector('#jc').blur(); S.setJoinCode(c).then(() => { A.code = c; A.tMsg = '가입 코드를 저장했어요.'; render(); }).catch(fail); };
+  r.querySelector('#jgo').onclick = async () => { await settle(); const c = r.querySelector('#jc').value.trim(); A.tErr = ''; A.tMsg = ''; if (c.length < 6) { A.tErr = '코드는 6자 이상으로 입력해 주세요.'; return render(); } r.querySelector('#jc').blur(); S.setJoinCode(c).then(() => { A.code = c; A.tMsg = '가입 코드를 저장했어요.'; render(); }).catch(fail); };
   r.querySelectorAll('[data-t]').forEach(el => {
     const t = A.teachers.find(x => x.id === el.dataset.t), bs = A.teachers.filter(x => x.boss && x.active).length;
     el.querySelector('.b').onclick = () => { A.tErr = ''; A.tMsg = ''; if (t.boss) { if (bs <= 1) { A.tErr = '마지막 대표는 해제할 수 없어요. 다른 선생님을 먼저 대표로 지정해 주세요.'; return render(); } S.updateTeacher(t.id, { boss: false }).catch(fail); } else { if (!t.active) { A.tErr = '사용 중지된 선생님은 대표가 될 수 없어요.'; return render(); } if (bs >= 3) { A.tErr = '대표는 3명까지예요.'; return render(); } S.updateTeacher(t.id, { boss: true }).catch(fail); } };
@@ -261,6 +263,7 @@ function bindAuth(r) {
   const m = A.phase === 'setup' ? 'setup' : A.authMode, sw = (i, x) => { const e = r.querySelector('#' + i); if (e) e.onclick = () => { A.authMode = x; A.err = ''; render(); }; };
   sw('toJoin', 'join'); sw('toRec', 'recover'); sw('toLogin', 'login');
   r.querySelector('#go').onclick = async () => {
+    await settle();
     const n = r.querySelector('#n').value.trim(), p = r.querySelector('#p').value, c = r.querySelector('#c')?.value.trim() ?? '';
     A.err = ''; if (n.length < 3) A.err = '이름을 3글자 이상 입력해 주세요.'; else if (p.length < 6) A.err = '암호를 6자 이상 입력해 주세요.'; else if (m !== 'login' && c.length < (m === 'setup' ? 6 : 1)) A.err = m === 'setup' ? '가입 코드를 6자 이상 정해 주세요.' : '센터 가입 코드를 입력해 주세요.';
     if (A.err) return render();
