@@ -57,8 +57,9 @@ function bindHours(root, onChange) {
 }
 function readHours(f) { const ht = f.querySelector('.ht'), max = +f.dataset.max; return L.parseHours(ht.value, max); }
 
+const qic = n => `<svg class="qic" viewBox="0 0 24 24" aria-hidden="true">${SVG[n]}</svg>`;
 function header() {
-  return `<header class="top"><div class="brand"><img src="icon-192.png" alt="반디 로고"><div class="tt"><div class="ttl">반디 방과후활동 출결부</div><div class="who">${esc(A.me.name)} 선생님${A.me.boss ? ' · 대표' : ''}</div></div><span class="qm" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span></div><div class="qb"><button id="mb">${A.screen === 'main' ? '메뉴' : '출결부'}</button><span class="qg" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span><button id="qSch" class="qi">시간표·학생 관리</button><button id="qStf" class="qi">제공인력 변경</button><button id="qPeer" class="qo">동료 출결부</button><button id="qXl" class="qx">엑셀 다운로드</button><button id="qOut" class="qk">로그아웃</button></div></header>`;
+  return `<header class="top"><div class="brand"><img src="icon-192.png" alt="반디 로고"><div class="tt"><div class="ttl">반디 방과후활동 출결부</div><div class="who">${esc(A.me.name)} 선생님${A.me.boss ? ' · 대표' : ''}</div></div><span class="qm" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span></div><div class="qb"><button id="mb">${A.screen === 'main' ? '메뉴' : '출결부'}</button><span class="qg" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span><button id="qSch" class="qi">${qic('clock')}시간표·학생 관리</button><button id="qStf" class="qi">${qic('swap')}제공인력 변경</button><button id="qPeer" class="qo">${qic('users')}동료 출결부</button><button id="qXl" class="qx">${qic('file')}엑셀 다운로드</button><button id="qOut" class="qk">${qic('out')}로그아웃</button></div></header>`;
 }
 function dateCell(d) {
   const cards = L.cardsFor(d, A.me.id, A.students, recs()), live = cards.filter(c => !c.removed && (A.filter === '전체' || c.sid === A.filter)), ok = live.length && live.every(c => c.done), isT = d === TODAY(), hol = L.HOLIDAYS[d], w = L.weekday(d);
