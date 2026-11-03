@@ -29,6 +29,7 @@ export function parseHours(text, max) {
   return { h };
 }
 export function ownerAt(st, date) { const o = st.ownership || []; let c = o[0]; for (const x of o) if (x.from <= date) c = x; return c ? c.tid : st.ownerTid; }
+export function staffAt(st, date) { let n = st.staff || ''; for (const x of st.staffs || []) if (x.from <= date) n = x.name; return n; }
 export function planFor(st, date) {
   if (st.endDate && date > st.endDate) return null;
   const w = weekday(date); if (!w) return null;
@@ -54,7 +55,7 @@ export function cardsFor(date, tid, students, records) {
     if (ownerAt(st, date) !== tid) continue;
     const p = planFor(st, date); if (!p) continue;
     const id = baseId(date, st.id), r = byId.get(id);
-    out.push(r ? { ...r, saved: true } : { id, date, month: monthOf(date), sid: st.id, sname: st.name, tid, staff: st.staff || '', s: p.s, e: p.e, h: p.h, pay: '정상', reason: '', etc: '', done: false, saved: false });
+    out.push(r ? { ...r, saved: true } : { id, date, month: monthOf(date), sid: st.id, sname: st.name, tid, staff: staffAt(st, date), s: p.s, e: p.e, h: p.h, pay: '정상', reason: '', etc: '', done: false, saved: false });
   }
   for (const r of records) if (r.date === date && r.custom && r.tid === tid && !r.id.startsWith('ack_')) out.push({ ...r, saved: true });
   return out;
