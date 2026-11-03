@@ -47,6 +47,9 @@ service cloud.firestore {
         && validCodeAfter());
     }
 
+    match /notices/{id} { allow read: if isActive(); allow create, update: if isBoss(); allow delete: if false; }
+    match /blocks/{id} { allow read, create, update: if isActive(); allow delete: if false; }
+
     match /students/{sid} {
       allow read: if isActive();
       allow create: if canBook(request.resource.data.ownerTid);
@@ -57,7 +60,8 @@ service cloud.firestore {
     match /records/{rid} {
       allow read: if isActive();
       allow create: if canBook(request.resource.data.tid) && request.resource.data.h is number && request.resource.data.h <= 16;
-      allow update: if canBook(resource.data.tid) && canBook(request.resource.data.tid) && request.resource.data.h is number && request.resource.data.h <= 16;
+      allow update: if (canBook(resource.data.tid) && canBook(request.resource.data.tid) && request.resource.data.h is number && request.resource.data.h <= 16)
+        || (isActive() && request.resource.data.done == false && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done','by','updatedAt']));
       allow delete: if canBook(resource.data.tid);
     }
   }
