@@ -159,7 +159,7 @@ function pullEd() {
   if ($('.ed .ts')) { x.s = $('.ed .ts').value; x.e = $('.ed .te').value; }
   const h = readHours($('.ed .hf')); if (h.h) x.h = h.h;
 }
-const dayRecs = (d, sid) => recs().filter(x => x.date === d && x.sid === sid && x.tid === A.me.id && x.done && !x.removed);
+const dayRecs = (d, sid) => recs().filter(x => x.date === d && x.sid === sid && x.tid === bkId() && x.done && !x.removed);
 const askDel = d => { if (A.filter !== '전체' && dayRecs(d, A.filter).length) A.delPop = { date: d, sid: A.filter }; };
 const TR = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-3px;margin-right:4px"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>';
 function delHtml() {
