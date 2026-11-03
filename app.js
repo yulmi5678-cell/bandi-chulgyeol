@@ -1,5 +1,5 @@
 import * as S from './store.js';
-import * as L from './logic.js?v=7';
+import * as L from './logic.js?v=8';
 import { buildXlsx } from './xlsx.js?v=4';
 const $root = document.getElementById('root'), TODAY = () => L.today();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -58,7 +58,7 @@ function bindHours(root, onChange) {
 function readHours(f) { const ht = f.querySelector('.ht'), max = +f.dataset.max; return L.parseHours(ht.value, max); }
 
 function header() {
-  return `<header class="top"><div class="brand"><img src="icon-192.png" alt="반디 로고"><div class="tt"><div class="ttl">반디 방과후활동 출결부</div><div class="who">${esc(A.me.name)} 선생님${A.me.boss ? ' · 대표' : ''}</div></div><span class="qm" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span></div><div class="qb"><button id="mb">${A.screen === 'main' ? '메뉴' : '출결부'}</button><span class="qg" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span><button id="qSch" class="qi">시간표·학생 관리</button><button id="qPeer" class="qo">동료 출결부</button><button id="qXl" class="qx">엑셀 다운로드</button><button id="qOut" class="qk">로그아웃</button></div></header>`;
+  return `<header class="top"><div class="brand"><img src="icon-192.png" alt="반디 로고"><div class="tt"><div class="ttl">반디 방과후활동 출결부</div><div class="who">${esc(A.me.name)} 선생님${A.me.boss ? ' · 대표' : ''}</div></div><span class="qm" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span></div><div class="qb"><button id="mb">${A.screen === 'main' ? '메뉴' : '출결부'}</button><span class="qg" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span><button id="qSch" class="qi">시간표·학생 관리</button><button id="qStf" class="qi">제공인력 변경</button><button id="qPeer" class="qo">동료 출결부</button><button id="qXl" class="qx">엑셀 다운로드</button><button id="qOut" class="qk">로그아웃</button></div></header>`;
 }
 function dateCell(d) {
   const cards = L.cardsFor(d, A.me.id, A.students, recs()), live = cards.filter(c => !c.removed && (A.filter === '전체' || c.sid === A.filter)), ok = live.length && live.every(c => c.done), isT = d === TODAY(), hol = L.HOLIDAYS[d], w = L.weekday(d);
@@ -212,7 +212,7 @@ function bindMain(r) {
   const gp = r.querySelector('#goPast'); if (gp) gp.onclick = () => go(L.pendingDates(TODAY(), A.me.id, A.students, recs(), [L.prevMonth(L.monthOf(TODAY()))])[0].date);
   const mp = r.querySelector('#mp'); mp.onchange = () => { if (mp.value) { mp.blur(); go(mp.value + '-01'); } };
   r.querySelectorAll('[data-fs]').forEach(b => b.onclick = () => { A.filter = A.filter === b.dataset.fs ? '전체' : b.dataset.fs; render(); });
-  r.querySelectorAll('.pinEd').forEach(pe => pe.onclick = () => { const st = A.students.find(s => s.id === pe.dataset.pin); if (!st) return; A.ed = { mode: 'add', pin: true, orig: null, origDate: A.cur, date: A.cur, sid: st.id, sname: st.name, pay: '정상', reason: '', etc: '', s: '16:00', e: '19:00', h: 3, staff: A.me.name, err: '' }; render(); });
+  r.querySelectorAll('.pinEd').forEach(pe => pe.onclick = () => { const st = A.students.find(s => s.id === pe.dataset.pin); if (!st) return; A.ed = { mode: 'add', pin: true, orig: null, origDate: A.cur, date: A.cur, sid: st.id, sname: st.name, pay: '정상', reason: '', etc: '', s: '16:00', e: '19:00', h: 3, staff: L.staffAt(st, A.cur) || A.me.name, err: '' }; render(); });
   const ab = r.querySelector('#addBtn'); if (ab) ab.onclick = () => { const mine = myStudents(); if (!mine.length) return toast('학생을 먼저 추가해 주세요.'); const sid = A.filter !== '전체' ? A.filter : mine[0].id; A.ed = { mode: 'add', orig: null, origDate: A.cur, date: A.cur, sid, sname: mine.find(s => s.id === sid).name, pay: '정상', reason: '', etc: '', s: '16:00', e: '19:00', h: 3, staff: A.me.name, err: '' }; render(); };
   bindHours(r); bindTimes(r);
   r.querySelectorAll('[data-c]').forEach(el => {
@@ -248,7 +248,7 @@ function bindMain(r) {
 }
 const it = (id, name, icon, c, b) => `<button class="it" id="${id}" style="color:${c}"><span class="ic" style="background:${b}"><svg viewBox="0 0 24 24" aria-hidden="true">${SVG[icon]}</svg></span><span>${name}</span><span aria-hidden="true" style="color:#94a3b8">›</span></button>`;
 function menuScreen() {
-  return `${A.msg ? `<div class="ok">${esc(A.msg)}</div>` : ''}<div class="group">내 출결부</div><div class="list">${it('mMain', '출결부로 돌아가기', 'cal', '#2563eb', '#eaf2ff')}${it('mSch', '시간표와 학생 관리', 'clock', '#4f46e5', '#eef2ff')}${it('mPeer', '동료 출결부 보기', 'users', '#d98a1f', '#fff8e8')}${it('mPw', '내 암호 바꾸기', 'key', '#475569', '#f1f5f9')}</div><div class="group">파일과 설치</div><div class="list">${it('mXl', '엑셀 다운로드', 'file', '#16a34a', '#ecfdf5')}${it('mApp', '앱 추가', 'phone', '#0e7490', '#ecfeff')}</div>${A.me.boss ? `<div class="group">대표 메뉴</div><div class="list">${it('mHand', '출결부 인계', 'swap', '#6d3fc4', '#f5f0ff')}${it('mTe', '선생님 관리', 'cog', '#6d3fc4', '#f5f0ff')}</div>` : ''}<div class="group"></div><div class="list">${it('mOut', '로그아웃', 'out', '#64748b', '#f1f5f9')}</div>`;
+  return `${A.msg ? `<div class="ok">${esc(A.msg)}</div>` : ''}<div class="group">내 출결부</div><div class="list">${it('mMain', '출결부로 돌아가기', 'cal', '#2563eb', '#eaf2ff')}${it('mSch', '시간표와 학생 관리', 'clock', '#4f46e5', '#eef2ff')}${it('mStf', '제공인력 변경', 'swap', '#4f46e5', '#eef2ff')}${it('mPeer', '동료 출결부 보기', 'users', '#d98a1f', '#fff8e8')}${it('mPw', '내 암호 바꾸기', 'key', '#475569', '#f1f5f9')}</div><div class="group">파일과 설치</div><div class="list">${it('mXl', '엑셀 다운로드', 'file', '#16a34a', '#ecfdf5')}${it('mApp', '앱 추가', 'phone', '#0e7490', '#ecfeff')}</div>${A.me.boss ? `<div class="group">대표 메뉴</div><div class="list">${it('mHand', '출결부 인계', 'swap', '#6d3fc4', '#f5f0ff')}${it('mTe', '선생님 관리', 'cog', '#6d3fc4', '#f5f0ff')}</div>` : ''}<div class="group"></div><div class="list">${it('mOut', '로그아웃', 'out', '#64748b', '#f1f5f9')}</div>`;
 }
 const go = s => { A.screen = s; A.msg = ''; window.scrollTo(0, 0); render(); };
 const openTeachers = () => { A.code = null; go('teachers'); S.getJoinCode().then(c => { A.code = c; soft(); }).catch(fail); };
@@ -268,16 +268,46 @@ function installAction() {
 }
 function bindMenu(r) {
   const on = (i, f) => { const e = r.querySelector('#' + i); if (e) e.onclick = f; };
-  on('mMain', () => go('main')); on('mSch', () => go('schedule')); on('mPeer', () => go('peers')); on('mPw', () => go('password')); on('mHand', () => go('handover')); on('mTe', openTeachers);
+  on('mMain', () => go('main')); on('mSch', () => go('schedule')); on('mStf', openStaff); on('mPeer', () => go('peers')); on('mPw', () => go('password')); on('mHand', () => go('handover')); on('mTe', openTeachers);
   on('mXl', () => downloadXlsx(A.me.id, A.me.name)); on('mApp', installAction);
   on('mOut', () => { A.modal = { text: '로그아웃할까요? 다음에 이름과 암호를 다시 입력해야 해요.', yes: '로그아웃', run: () => S.logout() }; render(); });
+}
+const openStaff = () => { A.sfMsg = ''; A.sfD = TODAY(); go('staff'); syncMonths(); };
+const sfRecs = (sid, d, name) => recs().filter(x => x.sid === sid && x.tid === A.me.id && x.done && !x.removed && x.date >= d && x.staff !== name);
+function staffScreen() {
+  const my = myStudents(); if (!my.some(s => s.id === A.sfS)) A.sfS = my[0]?.id || '';
+  const st = my.find(s => s.id === A.sfS);
+  if (!st) return `${backBtn('제공인력 변경')}<div class="meta">아직 학생이 없어요. 시간표와 학생 관리에서 먼저 추가해 주세요.</div>`;
+  const names = A.teachers.filter(t => t.active).map(t => t.name), cur = L.staffAt(st, TODAY()) || A.me.name; if (!names.includes(A.sfN)) A.sfN = names.find(n => n !== cur) || names[0] || '';
+  const n = A.sfD ? sfRecs(st.id, A.sfD, A.sfN).length : 0;
+  return `${backBtn('제공인력 변경')}<div class="card"><label class="field">학생<select id="sfS">${my.map(s => `<option value="${esc(s.id)}" ${s.id === st.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label><div class="field"><span>지금 제공인력</span><div class="sfc">${esc(cur)}</div></div><label class="field">새 제공인력<select id="sfN">${names.map(x => `<option ${x === A.sfN ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label><label class="field">시작 날짜<input id="sfD" type="date" value="${esc(A.sfD)}"></label><div class="meta" style="margin:-2px 0 10px">${n ? `${L.label(A.sfD)} 이후에 이미 입력한 기록 ${n}건도 함께 바뀌어요.` : '이미 입력한 기록은 바뀌지 않아요. 시작 날짜부터 새 이름이 들어가요.'} 하루만 바뀌면 그날의 [시간·결제 바꾸기]에서 골라 주세요.</div>${A.sfErr ? `<p class="err">${esc(A.sfErr)}</p>` : ''}<button id="sfOk" class="wide p" style="margin:0">저장하기</button>${A.sfMsg ? `<div class="ok" style="margin:10px 0 0">${esc(A.sfMsg)}</div>` : ''}</div>`;
+}
+function bindStaff(r) {
+  r.querySelector('#bk').onclick = () => go('menu');
+  const ok = r.querySelector('#sfOk'); if (!ok) return;
+  r.querySelector('#sfS').onchange = e => { A.sfS = e.target.value; A.sfMsg = ''; A.sfErr = ''; e.target.blur(); render(); };
+  r.querySelector('#sfN').onchange = e => { A.sfN = e.target.value; A.sfMsg = ''; A.sfErr = ''; e.target.blur(); render(); };
+  r.querySelector('#sfD').onchange = e => { A.sfD = e.target.value; A.sfMsg = ''; A.sfErr = ''; e.target.blur(); syncMonths(); render(); };
+  ok.onclick = () => {
+    const st = myStudents().find(s => s.id === A.sfS), name = A.sfN, d = A.sfD; A.sfErr = ''; A.sfMsg = '';
+    if (!st || !name) { A.sfErr = '학생과 제공인력을 골라 주세요.'; return render(); }
+    if (!d) { A.sfErr = '시작 날짜를 골라 주세요.'; return render(); }
+    const list = sfRecs(st.id, d, name), later = (st.staffs || []).filter(x => x.from > d), run = () => {
+      const base = (st.staffs || []).length ? st.staffs.filter(x => x.from < d) : [{ from: '2000-01-01', name: st.staff || A.me.name }], ns = { ...st, staffs: [...base, { from: d, name }], staff: name };
+      A.students = A.students.map(s => s.id === st.id ? ns : s);
+      A.sfMsg = `저장되었어요 ✓ ${L.label(d)}부터 ${name} 선생님으로 기록돼요.${list.length ? ` 기록 ${list.length}건도 바꿨어요.` : ''}`;
+      Promise.all([S.saveStudent(ns), ...list.map(x => S.saveRecord({ ...x, staff: name, updatedAt: Date.now() }))]).catch(fail); toast('저장되었어요 ✓'); render();
+    };
+    if (list.length || later.length) { A.modal = { text: `${st.name} 학생의 ${L.label(d)} 이후 ${list.length ? `기록 ${list.length}건을 ${name} 선생님으로 바꿀까요?` : `제공인력을 ${name} 선생님으로 바꿀까요?`}${later.length ? ` ${later.map(x => L.label(x.from)).join(', ')} 변경은 없어져요.` : ''}`, yes: '저장하기', run }; return render(); }
+    run();
+  };
 }
 const backBtn = t => `<button id="bk" class="wide lite">‹ 메뉴로</button><div class="h">${t}</div>`;
 function scheduleScreen() {
   const my = myStudents(); if (!my.find(s => s.id === A.mgr)) { A.mgr = my[0]?.id || ''; A.draft = null; }
   const st = my.find(s => s.id === A.mgr);
   if (st && !A.draft) A.draft = st.versions[st.versions.length - 1].days.map(d => ({ ...d }));
-  return `${backBtn('시간표와 학생 관리')}${A.sErr ? `<p class="err">${esc(A.sErr)}</p>` : ''}${A.sMsg ? `<div class="ok">${esc(A.sMsg)}</div>` : ''}<div class="card"><label class="field">새 학생 이름<input id="ns" placeholder="이름 입력" maxlength="20"></label><button id="as" class="wide lite" style="margin:0">학생 추가</button></div>${st ? `<div class="chips">${my.map(s => `<button class="ms ${s.id === A.mgr ? 'on' : ''}" data-id="${esc(s.id)}">${esc(s.name)}</button>`).join('')}</div><div class="card"><label class="field">이 시간표를 언제부터 쓸까요?<input id="fr" type="date" value="${A.from}"></label><div class="meta" style="margin:-4px 0 8px">지금 저장된 시간표: ${L.label(st.versions[st.versions.length - 1].from)}부터. 한 번 저장하면 바꾸기 전까지 매달 그대로 나와요.</div>${A.draft.map((d, i) => `<div class="row tbox" data-i="${i}"><div class="rh"><b style="font-size:18px;${i === 5 ? 'color:#2563eb' : ''}">${L.SD[i]}요일</b><button class="tg ${d.on ? 'on' : ''}" style="min-width:92px">${d.on ? '일정 있음' : '일정 없음'}</button></div>${d.on ? `<div style="margin-top:8px">${timeField('s', 'class="s"', '시작 시간', d.s)}${timeField('e', 'class="e"', '종료 시간', d.e)}${hoursField('d' + i, d.h, 10)}</div>` : ''}</div>`).join('')}<label class="field" style="margin-top:10px">제공인력<select id="sf">${[...new Set([...A.teachers.filter(t => t.active).map(t => t.name), st.staff || A.me.name])].map(n => `<option ${n === (st.staff || A.me.name) ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label><div class="field"><span>학생 글자색</span><div class="sws">${L.COLORS.map(c => `<button type="button" class="sw" data-c="${c}" aria-label="글자색 선택" style="background:${c};${L.colorOf(st, st.id) === c ? 'outline:3px solid #93c5fd;outline-offset:2px' : ''}"></button>`).join('')}</div></div><label class="field">월 총시간<input id="lim" inputmode="numeric" value="${st.limit || 66}"></label><button id="sv" class="wide p" style="margin:0">시간표 저장</button></div><div class="card"><div class="h" style="margin-top:0">${esc(st.name)} 이용 상태</div><div class="meta" style="margin-bottom:8px">${st.endDate ? `이용 종료 날짜: ${st.endDate}` : '이용 중'}</div>${st.endDate ? '<button id="res" class="wide lite" style="margin:0">이용 재개</button>' : A.endOpen ? `<div style="position:relative"><button id="efx" class="edx" style="top:-34px;right:-4px" aria-label="창 닫기">✕</button><label class="field">이용 종료 날짜<input id="ed" type="date" value="${L.lastDay(L.monthOf(TODAY()))}"></label><button id="ef" class="wide p" style="margin:0">저장</button></div>` : '<button id="efo" class="wide" style="margin:0">이 학생 이용 종료하기</button>'}</div>` : '<div class="meta">맡은 학생이 없어요. 위에서 학생을 추가해 주세요.</div>'}`;
+  return `${backBtn('시간표와 학생 관리')}${A.sErr ? `<p class="err">${esc(A.sErr)}</p>` : ''}${A.sMsg ? `<div class="ok">${esc(A.sMsg)}</div>` : ''}<div class="card"><label class="field">새 학생 이름<input id="ns" placeholder="이름 입력" maxlength="20"></label><button id="as" class="wide lite" style="margin:0">학생 추가</button></div>${st ? `<div class="chips">${my.map(s => `<button class="ms ${s.id === A.mgr ? 'on' : ''}" data-id="${esc(s.id)}">${esc(s.name)}</button>`).join('')}</div><div class="card"><label class="field">이 시간표를 언제부터 쓸까요?<input id="fr" type="date" value="${A.from}"></label><div class="meta" style="margin:-4px 0 8px">지금 저장된 시간표: ${L.label(st.versions[st.versions.length - 1].from)}부터. 한 번 저장하면 바꾸기 전까지 매달 그대로 나와요.</div>${A.draft.map((d, i) => `<div class="row tbox" data-i="${i}"><div class="rh"><b style="font-size:18px;${i === 5 ? 'color:#2563eb' : ''}">${L.SD[i]}요일</b><button class="tg ${d.on ? 'on' : ''}" style="min-width:92px">${d.on ? '일정 있음' : '일정 없음'}</button></div>${d.on ? `<div style="margin-top:8px">${timeField('s', 'class="s"', '시작 시간', d.s)}${timeField('e', 'class="e"', '종료 시간', d.e)}${hoursField('d' + i, d.h, 10)}</div>` : ''}</div>`).join('')}<div class="field" style="margin-top:10px"><span>제공인력</span><div class="sfc">${esc(L.staffAt(st, TODAY()) || A.me.name)} <small>바꾸려면 제공인력 변경을 눌러 주세요</small></div></div><div class="field"><span>학생 글자색</span><div class="sws">${L.COLORS.map(c => `<button type="button" class="sw" data-c="${c}" aria-label="글자색 선택" style="background:${c};${L.colorOf(st, st.id) === c ? 'outline:3px solid #93c5fd;outline-offset:2px' : ''}"></button>`).join('')}</div></div><label class="field">월 총시간<input id="lim" inputmode="numeric" value="${st.limit || 66}"></label><button id="sv" class="wide p" style="margin:0">시간표 저장</button></div><div class="card"><div class="h" style="margin-top:0">${esc(st.name)} 이용 상태</div><div class="meta" style="margin-bottom:8px">${st.endDate ? `이용 종료 날짜: ${st.endDate}` : '이용 중'}</div>${st.endDate ? '<button id="res" class="wide lite" style="margin:0">이용 재개</button>' : A.endOpen ? `<div style="position:relative"><button id="efx" class="edx" style="top:-34px;right:-4px" aria-label="창 닫기">✕</button><label class="field">이용 종료 날짜<input id="ed" type="date" value="${L.lastDay(L.monthOf(TODAY()))}"></label><button id="ef" class="wide p" style="margin:0">저장</button></div>` : '<button id="efo" class="wide" style="margin:0">이 학생 이용 종료하기</button>'}</div>` : '<div class="meta">맡은 학생이 없어요. 위에서 학생을 추가해 주세요.</div>'}`;
 }
 function bindSchedule(r) {
   r.querySelector('#bk').onclick = () => go('menu');
@@ -304,7 +334,7 @@ function bindSchedule(r) {
     if (A.sErr) return render();
     const after = (st.versions || []).filter(x => x.from >= A.from && x.from !== A.from && x.days.some(d => d.on)), doSave = () => {
     const v = (st.versions || []).filter(x => x.from < A.from); v.push({ from: A.from, days: A.draft.map(d => ({ on: d.on, s: d.s, e: d.e, h: d.h })) });
-    const ns = { ...st, versions: v, limit: lim, staff: r.querySelector('#sf').value }; A.students = A.students.map(s => s.id === st.id ? ns : s);
+    const ns = { ...st, versions: v, limit: lim, staff: st.staff }; A.students = A.students.map(s => s.id === st.id ? ns : s);
     A.sMsg = `저장되었어요 ✓ ${L.label(A.from)}부터 시간표를 바꾸기 전까지 계속 적용돼요. 매달 저장하지 않아도 돼요.`; document.activeElement?.blur?.(); S.saveStudent(ns).catch(fail); toast('저장되었어요 ✓'); render();
     };
     if (after.length) { A.modal = { text: `${after.map(x => L.label(x.from)).join(', ')}부터 쓰는 시간표가 이미 있어요. 저장하면 그 시간표는 지워져요. 저장할까요?`, yes: '저장하기', run: doSave }; return render(); }
@@ -386,12 +416,13 @@ function render() {
   if (A.phase === 'error') { $root.innerHTML = `<div class="auth"><div class="card"><div class="err">${esc(A.err)}</div><button id="rt" class="wide" style="margin:0">다시 시도</button></div></div>`; $root.querySelector('#rt').onclick = () => location.reload(); return; }
   if (A.phase === 'setup' || A.phase === 'auth') { const vals = {}; ['n', 'p', 'c'].forEach(i => { const e = $root.querySelector('#' + i); if (e) vals[i] = e.value; }); $root.innerHTML = authScreen(); Object.entries(vals).forEach(([i, v]) => { const e = $root.querySelector('#' + i); if (e) e.value = v; }); return bindAuth($root); }
   if (A.phase === 'suspended') { $root.innerHTML = suspendedScreen(); $root.querySelector('#so').onclick = () => S.logout(); return; }
-  const scr = { main: [mainScreen, bindMain], menu: [menuScreen, bindMenu], schedule: [scheduleScreen, bindSchedule], peers: [peersScreen, bindPeers], password: [passwordScreen, bindPassword], handover: [handoverScreen, bindHandover], teachers: [teachersScreen, bindTeachers] }[A.screen];
+  const scr = { main: [mainScreen, bindMain], menu: [menuScreen, bindMenu], schedule: [scheduleScreen, bindSchedule], staff: [staffScreen, bindStaff], peers: [peersScreen, bindPeers], password: [passwordScreen, bindPassword], handover: [handoverScreen, bindHandover], teachers: [teachersScreen, bindTeachers] }[A.screen];
   $root.innerHTML = header() + `<main id="m" class="${A.screen === 'main' ? '' : 'narrow'}">${scr[0]()}</main><nav class="mtabs">${[['a', '출석'], ['b', '기록'], ['menu', '메뉴']].map(([k, t]) => `<button data-tab="${k}" id="${k === 'menu' ? 'tMenu' : 'tab' + k}" class="${(k === 'menu' ? A.screen !== 'main' : A.screen === 'main' && (A.tab || 'a') === k) ? 'on' : ''}">${t}</button>`).join('')}</nav>` + (A.ed ? editorHtml() : '') + (A.delPop ? delHtml() : '') + (A.modal ? modalHtml() : '');
   const main = $root.querySelector('#m'); scr[1](main);
   $root.querySelector('#mb').onclick = () => { A.screen = A.screen === 'main' ? 'menu' : 'main'; A.msg = ''; scrollTo(0, 0); render(); };
   $root.querySelector('#qPeer').onclick = () => go('peers');
   $root.querySelector('#qSch').onclick = () => go('schedule');
+  $root.querySelector('#qStf').onclick = openStaff;
   $root.querySelector('#qXl').onclick = () => downloadXlsx(A.me.id, A.me.name);
   $root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { const k = b.dataset.tab; A.msg = ''; if (k === 'menu') A.screen = 'menu'; else { A.screen = 'main'; A.tab = k; } scrollTo(0, 0); render(); });
   $root.querySelector('#qOut').onclick = () => { A.modal = { text: '로그아웃할까요? 다음에 이름과 암호를 다시 입력해야 해요.', yes: '로그아웃', run: () => S.logout() }; render(); };
@@ -406,8 +437,9 @@ function maybeOfferInstall() {
   let seen = false; try { seen = localStorage.getItem('bandi_install_asked') === '1'; localStorage.setItem('bandi_install_asked', '1'); } catch { seen = true; }
   if (!seen && !matchMedia('(min-width:900px)').matches) { A.modal = { text: '바탕화면에 앱을 추가할까요?', yes: '추가하기', run: () => { A.screen = 'menu'; installAction(); } }; render(); }
 }
+const sfMonths = d => { const out = [], end = L.monthOf(TODAY()); let m = L.monthOf(d), n = 0; while (m <= end && n++ < 24) { out.push(m); m = L.add(L.lastDay(m), 1).slice(0, 7); } return out.length ? out : [L.monthOf(d)]; };
 function syncMonths() {
-  if (!A.me) return; const t = L.monthOf(TODAY()), wk = [L.monthOf(A.mon), L.monthOf(L.add(A.mon, 5)), L.monthOf(A.cur), t, L.prevMonth(t), ...(A.ed?.date ? [L.monthOf(A.ed.date)] : [])], ms = [...new Set(wk)].sort();
+  if (!A.me) return; const t = L.monthOf(TODAY()), wk = [L.monthOf(A.mon), L.monthOf(L.add(A.mon, 5)), L.monthOf(A.cur), t, L.prevMonth(t), ...(A.ed?.date ? [L.monthOf(A.ed.date)] : []), ...(A.screen === 'staff' && A.sfD ? sfMonths(A.sfD) : [])], ms = [...new Set(wk)].sort();
   if (ms.join() === A.months.join()) return; A.months = ms; A.recUnsub?.();
   A.recUnsub = S.subRecords(ms, list => { A.online = true; A.rec = new Map(list.map(r => [r.id, r])); soft(); }, connErr);
 }
