@@ -49,13 +49,13 @@ export async function register(name, pw, code) {
     b.set(doc(db, "members", cred.user.uid), { tid, joinHash: hash });
     b.set(doc(db, "logins", key), { tid, gen: 0 });
     await b.commit();
-  } catch (e) { await cred.user.delete().catch(() => {}); say("가입 코드가 맞지 않아요. 대표 선생님께 확인해 주세요."); }
+  } catch (e) { await cred.user.delete().catch(() => {}); say("가입 코드가 맞지 않아요. 관리자 선생님께 확인해 주세요."); }
 }
 export async function recover(name, pw, code) {
   const key = nameKey(name), l = await getDoc(doc(db, "logins", key));
   if (!l.exists()) say("가입된 이름이 아니에요.");
   const cred = await createUserWithEmailAndPassword(auth, emailFor(key, l.data().gen), pw).catch(e => {
-    if (e.code === "auth/email-already-in-use") say("대표 선생님이 아직 암호 재설정을 누르지 않았어요. 대표 선생님께 말씀해 주세요.");
+    if (e.code === "auth/email-already-in-use") say("관리자 선생님이 아직 암호 재설정을 누르지 않았어요. 관리자 선생님께 말씀해 주세요.");
     throw e; });
   try {
     const hash = await hashCode(code), b = writeBatch(db);
