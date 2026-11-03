@@ -60,7 +60,9 @@ export function cardsFor(date, tid, students, records) {
   for (const r of records) if (r.date === date && r.custom && r.tid === tid && !r.id.startsWith('ack_')) out.push({ ...r, saved: true });
   return out;
 }
-export const isPending = (c, date) => !c.done && !c.removed && !HOLIDAYS[date];
+let blockedFn = () => false;
+export const setBlockedFn = f => { blockedFn = f; };
+export const isPending = (c, date) => !c.done && !c.removed && !HOLIDAYS[date] && !blockedFn(date, c.sid);
 export function pendingDates(todayStr, tid, students, records, months) {
   const out = []; const m = months.slice().sort()[0]; let d = m + '-01';
   while (d < todayStr) { const n = cardsFor(d, tid, students, records).filter(c => isPending(c, d)).length; if (n) out.push({ date: d, n }); d = add(d, 1); }
