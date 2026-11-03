@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { firebaseConfig } from "./config.js";
 
 const app = initializeApp(firebaseConfig), auth = getAuth(app), db = getFirestore(app);
@@ -8,6 +8,7 @@ const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")
 const enc = s => new TextEncoder().encode(s);
 export const nameKey = name => hex(enc(name.normalize("NFC").trim()));
 export async function hashCode(code) { return hex(await crypto.subtle.digest("SHA-256", enc(code.normalize("NFC").trim()))); }
+const fbPw = pw => { const p = pw.normalize("NFC"); return p.length >= 6 ? p : `bandi-${p}-pw`; };
 const emailFor = (key, gen) => `u${key}.${gen}@bandi.example.com`;
 const newId = c => doc(collection(db, c)).id;
 class AppError extends Error {}
@@ -22,7 +23,7 @@ export async function myProfile(uid) {
   return { id: t.id, ...t.data() };
 }
 export async function bootstrap(name, pw, code) {
-  const key = nameKey(name), cred = await createUserWithEmailAndPassword(auth, emailFor(key, 0), pw);
+  const key = nameKey(name), cred = await createUserWithEmailAndPassword(auth, emailFor(key, 0), fbPw(pw));
   try {
     const hash = await hashCode(code), tid = newId("teachers"), b = writeBatch(db);
     b.set(doc(db, "meta", "init"), { at: Date.now() });
@@ -37,12 +38,12 @@ export async function bootstrap(name, pw, code) {
 export async function login(name, pw) {
   const l = await getDoc(doc(db, "logins", nameKey(name)));
   if (!l.exists()) say("가입된 이름이 아니에요. 처음이시면 가입하기를 눌러 주세요.");
-  await signInWithEmailAndPassword(auth, emailFor(nameKey(name), l.data().gen), pw);
+  await signInWithEmailAndPassword(auth, emailFor(nameKey(name), l.data().gen), fbPw(pw));
 }
 export async function register(name, pw, code) {
   const key = nameKey(name);
   if ((await getDoc(doc(db, "logins", key))).exists()) say("이미 가입한 이름이에요. 로그인해 주세요. 같은 이름의 다른 선생님이면 이름 뒤에 숫자를 붙여 주세요.");
-  const cred = await createUserWithEmailAndPassword(auth, emailFor(key, 0), pw);
+  const cred = await createUserWithEmailAndPassword(auth, emailFor(key, 0), fbPw(pw));
   try {
     const hash = await hashCode(code), tid = newId("teachers"), b = writeBatch(db);
     b.set(doc(db, "teachers", tid), { name: name.trim(), uid: cred.user.uid, boss: false, active: true, resetAllowed: false });
@@ -54,7 +55,7 @@ export async function register(name, pw, code) {
 export async function recover(name, pw, code) {
   const key = nameKey(name), l = await getDoc(doc(db, "logins", key));
   if (!l.exists()) say("가입된 이름이 아니에요.");
-  const cred = await createUserWithEmailAndPassword(auth, emailFor(key, l.data().gen), pw).catch(e => {
+  const cred = await createUserWithEmailAndPassword(auth, emailFor(key, l.data().gen), fbPw(pw)).catch(e => {
     if (e.code === "auth/email-already-in-use") say("관리자 선생님이 아직 암호 재설정을 누르지 않았어요. 관리자 선생님께 말씀해 주세요.");
     throw e; });
   try {
@@ -67,8 +68,8 @@ export async function recover(name, pw, code) {
 export function logout() { return signOut(auth); }
 export async function changePassword(cur, next) {
   const u = auth.currentUser;
-  await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, cur));
-  await updatePassword(u, next);
+  await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, fbPw(cur)));
+  await updatePassword(u, fbPw(next));
 }
 const listen = (q, cb, err) => onSnapshot(q, s => cb(s.docs.map(d => ({ id: d.id, ...d.data() }))), err);
 export const subTeachers = (cb, err) => listen(collection(db, "teachers"), cb, err);
@@ -77,6 +78,8 @@ export const subRecords = (months, cb, err) => listen(query(collection(db, "reco
 export const newStudentId = () => newId("students");
 export const saveStudent = s => { const { id, ...d } = s; return setDoc(doc(db, "students", id), d); };
 export const saveRecord = r => { const { id, ...d } = r; return setDoc(doc(db, "records", id), d); };
+export const recordsOf = async sid => (await getDocs(query(collection(db, "records"), where("sid", "==", sid)))).docs.map(d => ({ id: d.id, ...d.data() }));
+export const deleteStudent = id => deleteDoc(doc(db, "students", id));
 export const removeRecord = id => deleteDoc(doc(db, "records", id));
 export const updateTeacher = (id, patch) => updateDoc(doc(db, "teachers", id), patch);
 export async function allowReset(t) {
