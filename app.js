@@ -122,21 +122,21 @@ function openEd(c, pay) {
   render();
 }
 function editorHtml() {
-  const x = A.ed, add = x.mode === 'add', ack = x.pay === '인정', max = ack ? 16 : 10, st = A.teachers.filter(t => t.active).map(t => t.name), mine = myStudents();
-  if (!st.includes(x.staff)) st.push(x.staff);
+  const x = A.ed, add = x.mode === 'add', ack = x.pay === '인정', max = ack ? 16 : 10, st = staffNames(), mine = myStudents();
+  if (x.staff && !st.includes(x.staff)) st.push(x.staff);
   const q = x.reason === '기타' ? `<label class="field">기타 사유<input id="edE" value="${esc(x.etc)}" placeholder="사유 입력"></label>` : '';
   return `<div class="back"><div class="card ed" role="dialog" aria-modal="true"><button id="edX" class="edx" aria-label="창 닫기">✕</button><div class="edt">${x.pin ? `${esc(x.sname)} · ${dl(x.origDate)} 입력` : add ? '이 날 온 학생 추가' : `${esc(x.sname)} · ${dl(x.origDate)} 수정`}</div><div class="meta">${x.pin ? '저장하면 출석으로 기록돼요.' : add ? '날짜와 학생을 골라 주세요.' : x.orig.done ? '출석한 기록이에요.' : '아직 출석 전이에요. 저장해도 출석은 [출석] 버튼으로 해요.'}</div>
   <label class="field">날짜<input id="edD" type="date" value="${esc(x.date)}"></label>${add && !x.pin ? `<label class="field">학생<select id="edS">${mine.map(s => `<option value="${esc(s.id)}" ${s.id === x.sid ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>` : ''}
   <div class="field"><span>결제구분</span><div class="pays4">${L.ALL_PAYS.map(p => { const k = PC[p]; return `<button type="button" class="edp" data-p="${p}" style="${p === x.pay ? `background:${k[0]};color:${k[1]};border:2px solid ${k[1]}` : ''}">${p}</button>`; }).join('')}</div></div>
   ${x.pay === '소급' ? `<label class="field">소급 사유<select id="edR"><option value="">사유를 골라 주세요</option>${L.REASONS.map(r => `<option ${r === x.reason ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></label>${q}` : ''}
-  <label class="field">제공인력<select id="edF">${st.map(n => `<option ${n === x.staff ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+  <label class="field">제공인력<select id="edF">${st.map(n => `<option ${!x.custom && n === x.staff ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="__c" ${x.custom ? 'selected' : ''}>직접 입력</option></select></label>${x.custom ? `<label class="field">이름 입력<input id="edI" maxlength="20" placeholder="이름을 입력해 주세요" value="${esc(x.staffT || '')}"></label>` : ''}
   <div class="tbox">${ack ? '' : timeField('s', 'class="ts"', '시작 시간', x.s || '16:00') + timeField('e', 'class="te"', '종료 시간', x.e || '19:00')}${hoursField('edH', Math.min(x.h, max), max, ack ? '인정 시간 (학생별 월 1회)' : '기록 시간')}</div>
   ${x.err ? `<p class="err">${esc(x.err)}</p>` : ''}<div class="two" style="margin-top:12px"><button id="edOk" class="p">저장하기</button><button id="edNo">취소하기</button></div></div></div>`;
 }
 function pullEd() {
   const x = A.ed, $ = i => $root.querySelector(i); if (!x || !$('#edOk')) return;
   x.date = $('#edD').value; if ($('#edS')) { x.sid = $('#edS').value; x.sname = myStudents().find(s => s.id === x.sid)?.name || ''; }
-  if ($('#edR')) x.reason = $('#edR').value; if ($('#edE')) x.etc = $('#edE').value; x.staff = $('#edF').value;
+  if ($('#edR')) x.reason = $('#edR').value; if ($('#edE')) x.etc = $('#edE').value; x.custom = $('#edF').value === '__c'; if (x.custom) { if ($('#edI')) x.staffT = $('#edI').value; } else x.staff = $('#edF').value;
   if ($('.ed .ts')) { x.s = $('.ed .ts').value; x.e = $('.ed .te').value; }
   const h = readHours($('.ed .hf')); if (h.h) x.h = h.h;
 }
@@ -156,6 +156,7 @@ function saveEd() {
   if (x.pay === '소급' && x.reason === '기타' && !x.etc.trim()) return fail2('기타 사유를 입력해 주세요.');
   if (!ack && (!x.s || !x.e || x.s >= x.e)) return fail2('종료 시간은 시작 시간보다 늦어야 해요.');
   if (h.error) return fail2(h.error);
+  if (x.custom) { if (!(x.staffT || '').trim()) return fail2('제공인력 이름을 입력해 주세요.'); x.staff = x.staffT.trim(); }
   const m = L.monthOf(x.date), base = { date: x.date, month: m, sid: x.sid, sname: x.sname, tid: A.me.id, tname: A.me.name, staff: x.staff, h: h.h, pay: x.pay, reason: x.pay === '소급' ? x.reason : '', etc: x.pay === '소급' && x.reason === '기타' ? x.etc : '', updatedAt: Date.now(), bulk: false, removed: false }, jobs = [];
   if (ack) {
     const id = L.ackId(m, x.sid), ex = A.rec.get(id);
@@ -180,6 +181,7 @@ function bindEd() {
   $('#edD').onchange = () => { pullEd(); A.ed.err = ''; syncMonths(); };
   ed.querySelectorAll('.edp').forEach(b => b.onclick = () => { pullEd(); const x = A.ed; x.pay = b.dataset.p; x.err = ''; if (x.pay !== '소급') { x.reason = ''; x.etc = ''; } if (x.pay !== '인정' && x.h > 10) x.h = 10; render(); });
   if ($('#edR')) $('#edR').onchange = () => { pullEd(); A.ed.err = ''; render(); };
+  $('#edF').onchange = () => { pullEd(); A.ed.err = ''; render(); if (A.ed.custom) $root.querySelector('#edI')?.focus(); };
 }
 function ackCard(s, m) {
   const id = L.ackId(m, s.id), r = A.rec.get(id), f = A.ack[id];
@@ -272,25 +274,27 @@ function bindMenu(r) {
   on('mXl', () => downloadXlsx(A.me.id, A.me.name)); on('mApp', installAction);
   on('mOut', () => { A.modal = { text: '로그아웃할까요? 다음에 이름과 암호를 다시 입력해야 해요.', yes: '로그아웃', run: () => S.logout() }; render(); });
 }
-const openStaff = () => { A.sfMsg = ''; A.sfD = TODAY(); go('staff'); syncMonths(); };
+const staffNames = () => [...new Set([...A.teachers.filter(t => t.active).map(t => t.name), ...A.students.flatMap(s => [s.staff, ...(s.staffs || []).map(x => x.name)]), ...recs().map(r => r.staff)].filter(Boolean))];
+const openStaff = () => { A.sfC = false; A.sfT = ''; A.sfMsg = ''; A.sfD = TODAY(); go('staff'); syncMonths(); };
 const sfRecs = (sid, d, name) => recs().filter(x => x.sid === sid && x.tid === A.me.id && x.done && !x.removed && x.date >= d && x.staff !== name);
 function staffScreen() {
   const my = myStudents(); if (!my.some(s => s.id === A.sfS)) A.sfS = my[0]?.id || '';
   const st = my.find(s => s.id === A.sfS);
   if (!st) return `${backBtn('제공인력 변경')}<div class="meta">아직 학생이 없어요. 시간표와 학생 관리에서 먼저 추가해 주세요.</div>`;
-  const names = A.teachers.filter(t => t.active).map(t => t.name), cur = L.staffAt(st, TODAY()) || A.me.name; if (!names.includes(A.sfN)) A.sfN = names.find(n => n !== cur) || names[0] || '';
-  const n = A.sfD ? sfRecs(st.id, A.sfD, A.sfN).length : 0;
-  return `${backBtn('제공인력 변경')}<div class="card"><label class="field">학생<select id="sfS">${my.map(s => `<option value="${esc(s.id)}" ${s.id === st.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label><div class="field"><span>지금 제공인력</span><div class="sfc">${esc(cur)}</div></div><label class="field">새 제공인력<select id="sfN">${names.map(x => `<option ${x === A.sfN ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label><label class="field">시작 날짜<input id="sfD" type="date" value="${esc(A.sfD)}"></label><div class="meta" style="margin:-2px 0 10px">${n ? `${L.label(A.sfD)} 이후에 이미 입력한 기록 ${n}건도 함께 바뀌어요.` : '이미 입력한 기록은 바뀌지 않아요. 시작 날짜부터 새 이름이 들어가요.'} 하루만 바뀌면 그날의 [시간·결제 바꾸기]에서 골라 주세요.</div>${A.sfErr ? `<p class="err">${esc(A.sfErr)}</p>` : ''}<button id="sfOk" class="wide p" style="margin:0">저장하기</button>${A.sfMsg ? `<div class="ok" style="margin:10px 0 0">${esc(A.sfMsg)}</div>` : ''}</div>`;
+  const names = staffNames(), cur = L.staffAt(st, TODAY()) || A.me.name; if (!names.includes(A.sfN)) A.sfN = names.find(n => n !== cur) || names[0] || '';
+  const n = A.sfD ? sfRecs(st.id, A.sfD, A.sfC ? A.sfT.trim() : A.sfN).length : 0;
+  return `${backBtn('제공인력 변경')}<div class="card"><label class="field">학생<select id="sfS">${my.map(s => `<option value="${esc(s.id)}" ${s.id === st.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label><div class="field"><span>지금 제공인력</span><div class="sfc">${esc(cur)}</div></div><label class="field">새 제공인력<select id="sfN">${names.map(x => `<option ${!A.sfC && x === A.sfN ? 'selected' : ''}>${esc(x)}</option>`).join('')}<option value="__c" ${A.sfC ? 'selected' : ''}>직접 입력</option></select></label>${A.sfC ? `<label class="field">이름 입력<input id="sfI" maxlength="20" placeholder="이름을 입력해 주세요" value="${esc(A.sfT)}"></label>` : ''}<label class="field">시작 날짜<input id="sfD" type="date" value="${esc(A.sfD)}"></label><div class="meta" style="margin:-2px 0 10px">${n ? `${L.label(A.sfD)} 이후에 이미 입력한 기록 ${n}건도 함께 바뀌어요.` : '이미 입력한 기록은 바뀌지 않아요. 시작 날짜부터 새 이름이 들어가요.'} 하루만 바뀌면 그날의 [시간·결제 바꾸기]에서 골라 주세요.</div>${A.sfErr ? `<p class="err">${esc(A.sfErr)}</p>` : ''}<button id="sfOk" class="wide p" style="margin:0">저장하기</button>${A.sfMsg ? `<div class="ok" style="margin:10px 0 0">${esc(A.sfMsg)}</div>` : ''}</div>`;
 }
 function bindStaff(r) {
   r.querySelector('#bk').onclick = () => go('menu');
   const ok = r.querySelector('#sfOk'); if (!ok) return;
   r.querySelector('#sfS').onchange = e => { A.sfS = e.target.value; A.sfMsg = ''; A.sfErr = ''; e.target.blur(); render(); };
-  r.querySelector('#sfN').onchange = e => { A.sfN = e.target.value; A.sfMsg = ''; A.sfErr = ''; e.target.blur(); render(); };
+  const sfI = r.querySelector('#sfI'); if (sfI) { sfI.oninput = () => { A.sfT = sfI.value; A.sfMsg = ''; }; sfI.onchange = () => { A.sfT = sfI.value; soft(); }; }
+  r.querySelector('#sfN').onchange = e => { A.sfC = e.target.value === '__c'; if (!A.sfC) A.sfN = e.target.value; A.sfMsg = ''; A.sfErr = ''; e.target.blur(); render(); };
   r.querySelector('#sfD').onchange = e => { A.sfD = e.target.value; A.sfMsg = ''; A.sfErr = ''; e.target.blur(); syncMonths(); render(); };
   ok.onclick = () => {
-    const st = myStudents().find(s => s.id === A.sfS), name = A.sfN, d = A.sfD; A.sfErr = ''; A.sfMsg = '';
-    if (!st || !name) { A.sfErr = '학생과 제공인력을 골라 주세요.'; return render(); }
+    const st = myStudents().find(s => s.id === A.sfS), name = A.sfC ? A.sfT.trim() : A.sfN, d = A.sfD; A.sfErr = ''; A.sfMsg = '';
+    if (!st || !name) { A.sfErr = A.sfC ? '이름을 입력해 주세요.' : '학생과 제공인력을 골라 주세요.'; return render(); }
     if (!d) { A.sfErr = '시작 날짜를 골라 주세요.'; return render(); }
     const list = sfRecs(st.id, d, name), later = (st.staffs || []).filter(x => x.from > d), run = () => {
       const base = (st.staffs || []).length ? st.staffs.filter(x => x.from < d) : [{ from: '2000-01-01', name: st.staff || A.me.name }], ns = { ...st, staffs: [...base, { from: d, name }], staff: name };
