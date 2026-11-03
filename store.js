@@ -80,6 +80,11 @@ export const saveStudent = s => { const { id, ...d } = s; return setDoc(doc(db, 
 export const saveRecord = r => { const { id, ...d } = r; return setDoc(doc(db, "records", id), d); };
 export const recordsOf = async sid => (await getDocs(query(collection(db, "records"), where("sid", "==", sid)))).docs.map(d => ({ id: d.id, ...d.data() }));
 export const deleteStudent = id => deleteDoc(doc(db, "students", id));
+export const subBlocks = (cb, err) => listen(collection(db, "blocks"), cb, err);
+export const saveBlock = b => { const { id, ...d } = b; return setDoc(doc(db, "blocks", id), d); };
+export const subNotices = (cb, err) => listen(collection(db, "notices"), cb, err);
+export const newNoticeId = () => newId("notices");
+export const saveNotice = n => { const { id, ...d } = n; return setDoc(doc(db, "notices", id), d); };
 export const removeRecord = id => deleteDoc(doc(db, "records", id));
 export const updateTeacher = (id, patch) => updateDoc(doc(db, "teachers", id), patch);
 export async function allowReset(t) {
