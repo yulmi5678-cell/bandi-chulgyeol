@@ -91,7 +91,7 @@ function monthCal(m) {
 function mainScreen() {
   const d = A.cur, m = L.monthOf(d), list = L.cardsFor(d, A.me.id, A.students, recs()), t0 = TODAY();
   const todayLeft = L.cardsFor(t0, A.me.id, A.students, recs()).filter(c => L.isPending(c, t0)).length;
-  const past = L.pendingDates(t0, A.me.id, A.students, recs(), [L.prevMonth(L.monthOf(t0))]);
+  const past = L.pendingDates(t0, A.me.id, A.students, recs(), [L.monthOf(t0)]);
   const pastN = past.reduce((a, x) => a + x.n, 0);
   const names = A.students.filter(s => L.ownerAt(s, d) === A.me.id && !(s.endDate && s.endDate < m + '-01'));
   if (A.filter !== '전체' && !names.some(s => s.id === A.filter)) A.filter = '전체';
@@ -214,7 +214,7 @@ function bindMain(r) {
   r.querySelectorAll('.fl').forEach(b => b.onclick = () => { A.filter = b.dataset.id; render(); });
   const go = d => { A.cur = d; A.mon = L.mondayOf(d); syncMonths(); render(); };
   const gt = r.querySelector('#goToday'); if (gt) gt.onclick = () => go(TODAY());
-  const gp = r.querySelector('#goPast'); if (gp) gp.onclick = () => go(L.pendingDates(TODAY(), A.me.id, A.students, recs(), [L.prevMonth(L.monthOf(TODAY()))])[0].date);
+  const gp = r.querySelector('#goPast'); if (gp) gp.onclick = () => go(L.pendingDates(TODAY(), A.me.id, A.students, recs(), [L.monthOf(TODAY())])[0].date);
   const mp = r.querySelector('#mp'); mp.onchange = () => { if (mp.value) { mp.blur(); go(mp.value + '-01'); } };
   r.querySelectorAll('[data-fs]').forEach(b => b.onclick = () => { A.filter = A.filter === b.dataset.fs ? '전체' : b.dataset.fs; render(); });
   r.querySelectorAll('.pinEd').forEach(pe => pe.onclick = () => { const st = A.students.find(s => s.id === pe.dataset.pin); if (!st) return; A.ed = { mode: 'add', pin: true, orig: null, origDate: A.cur, date: A.cur, sid: st.id, sname: st.name, pay: '정상', reason: '', etc: '', s: '16:00', e: '19:00', h: 3, staff: L.staffAt(st, A.cur) || A.me.name, err: '' }; render(); });
