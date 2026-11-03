@@ -1,11 +1,11 @@
 import * as S from './store.js';
-import * as L from './logic.js?v=9';
+import * as L from './logic.js?v=10';
 import { buildXlsx } from './xlsx.js?v=4';
 const $root = document.getElementById('root'), TODAY = () => L.today();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const PC = { 정상: ['#eff6ff', '#2563eb', '#16a34a'], 소급: ['#fff8e8', '#d98a1f', '#d98a1f'], 송영: ['#ecfeff', '#0e7490', '#0e7490'], 인정: ['#f5f0ff', '#6d3fc4', '#6d3fc4'] };
 const SVG = { cal: '<path d="M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM9 15l2 2 4-4"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', users: '<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 2.5-6 6-6s6 2.500 6 6M16 5a3.500 3.500 0 0 1 0 6.500M18 14.500c2 .7 3 2.600 3 5.500"/>', key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M14 9l2 2"/>', file: '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 12l6 6M15 12l-6 6"/>', phone: '<rect x="7" y="2.500" width="10" height="19" rx="2"/><path d="M11 18.500h2"/>', swap: '<path d="M4 8h15M15 4l4 4-4 4M20 16H5M9 12l-4 4 4 4"/>', cog: '<circle cx="9" cy="8" r="4"/><path d="M3 20c0-3.500 2.500-6 6-6 1 0 2 .2 2.800.6"/><circle cx="17.500" cy="17.500" r="2.500"/><path d="M17.500 13v2M17.500 20v2M13 17.500h2M20 17.500h2"/>', out: '<path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M15 8l4 4-4 4M19 12H9"/>' };
-const A = { phase: 'loading', authMode: 'login', err: '', msg: '', busy: false, me: null, teachers: [], students: [], rec: new Map(), months: [], unsub: [], recUnsub: null, screen: 'main', cur: TODAY(), mon: L.mondayOf(TODAY()), filter: '전체', open: {}, edit: {}, adding: false, ed: null, delPop: null, book: '', bdFold: false, peer: '', ack: {}, online: true, mgr: '', draft: null, from: TODAY(), sErr: '', sMsg: '', hF: '', hS: '전체', hT: '', hD: TODAY(), hErr: '', hMsg: '', tErr: '', tMsg: '', code: null, modal: null, installEvt: null };
+const A = { phase: 'loading', authMode: 'login', err: '', msg: '', busy: false, me: null, teachers: [], students: [], rec: new Map(), months: [], unsub: [], recUnsub: null, screen: 'main', cur: TODAY(), mon: L.mondayOf(TODAY()), filter: '전체', open: {}, edit: {}, adding: false, ed: null, delPop: null, book: '', bdFold: false, more: '', blPop: null, blocks: new Map(), notices: [], ntOff: new Set(), peer: '', ack: {}, online: true, mgr: '', draft: null, from: TODAY(), sErr: '', sMsg: '', hF: '', hS: '전체', hT: '', hD: TODAY(), hErr: '', hMsg: '', tErr: '', tMsg: '', code: null, modal: null, installEvt: null };
 const recs = () => [...A.rec.values()];
 const toast = m => { const t = document.getElementById('tst'); t.innerHTML = `<div class="toast">${esc(m)}</div>`; setTimeout(() => t.innerHTML = '', 2600); };
 const fail = e => { console.error(e); toast(e?.message && /[가-힣]/.test(e.message) ? e.message : '저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'); };
@@ -13,6 +13,8 @@ const authErr = e => e?.message && /[가-힣]/.test(e.message) ? e.message : ({ 
 const books = () => [A.me, ...(A.me?.manages || []).filter(i => i !== A.me?.id).map(i => A.teachers.find(x => x.id === i)).filter(Boolean)];
 const bkId = () => A.book && books().some(x => x.id === A.book) ? A.book : A.me.id;
 const bkName = () => books().find(x => x.id === bkId())?.name || A.me.name;
+const blk = (d, sid) => { const b = A.blocks.get(`${d}_${sid}`); return b && b.active ? b : null; };
+L.setBlockedFn(blk);
 const myStudents = () => A.students.filter(s => L.ownerAt(s, '9999-12-31') === bkId());
 const hasFocusInput = () => ['INPUT', 'SELECT'].includes(document.activeElement?.tagName);
 let later = false;
@@ -66,7 +68,7 @@ function bookBar() {
   const left = b => L.cardsFor(TODAY(), b.id, A.students, recs()).filter(c => L.isPending(c, TODAY())).length, cur = bkId();
   return `<label class="bookw ${cur === A.me.id ? '' : 'other'}">출결부<select id="bkS">${bs.map(b => `<option value="${b.id}" ${b.id === cur ? 'selected' : ''}>${esc(b.name)}${b.id === A.me.id ? ' (내 출결부)' : ''}${left(b) ? ` · 오늘 ${left(b)}건 남음` : ''}</option>`).join('')}</select></label>`;
 }
-function setBook(id) { A.book = id; A.filter = '전체'; A.mgr = ''; A.draft = null; A.sfS = ''; A.sfMsg = ''; A.ack = {}; A.ed = null; A.delPop = null; A.bdPop = null; }
+function setBook(id) { A.book = id; A.filter = '전체'; A.mgr = ''; A.draft = null; A.sfS = ''; A.sfMsg = ''; A.ack = {}; A.ed = null; A.delPop = null; A.bdPop = null; A.blPop = null; A.more = ''; }
 function header() {
   return `<header class="top"><div class="brand"><img src="icon-192.png" alt="반디 로고"><div class="tt"><div class="ttl">반디 방과후활동 출결부</div><div class="who">${esc(A.me.name)} 선생님${A.me.boss ? ' · 관리자' : ''}</div></div><span class="qm" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span></div><div class="qb"><button id="mb">${A.screen === 'main' ? '메뉴' : '출결부'}</button><span class="qg" style="background:${A.online ? '#10b981' : '#d98a1f'}">${A.online ? '연동중' : '연결 끊김'}</span><button id="qSch" class="qi">${qic('clock')}시간표·학생 관리</button><button id="qStf" class="qi">${qic('swap')}제공인력 변경</button><button id="qPeer" class="qo">${qic('users')}동료 출결부</button><button id="qXl" class="qx">${qic('file')}엑셀 다운로드</button><button id="qOut" class="qk">${qic('out')}로그아웃</button></div>${bookBar()}</header>`;
 }
@@ -83,7 +85,7 @@ function bulkTargets(m) {
   const out = [], t = TODAY(), end = L.lastDay(m) < t ? L.lastDay(m) : t;
   for (let d = m + '-01'; d <= end; d = L.add(d, 1)) {
     if (L.HOLIDAYS[d] || L.weekday(d) === 0) continue;
-    L.cardsFor(d, bkId(), A.students, recs()).forEach(c => { if (!c.saved) out.push(c); });
+    L.cardsFor(d, bkId(), A.students, recs()).forEach(c => { if (!c.saved && !blk(d, c.sid)) out.push(c); });
   }
   return out;
 }
@@ -108,11 +110,59 @@ function bindBdPop() {
   if ($('#bpU')) $('#bpU').onclick = () => { const c = card(); A.bdPop = null; if (c) { saveCard(c, { done: false }, p.own); toast('출석을 취소했어요'); } render(); };
   if ($('#bpD')) $('#bpD').onclick = () => { const c = card(); A.bdPop = null; if (c) dropRec(c).then(() => toast('삭제했어요')).catch(fail); render(); };
 }
+async function doBlock(date, sid, sname, tid, reason) {
+  const b = { id: `${date}_${sid}`, date, sid, sname, tid, tname: A.teachers.find(x => x.id === tid)?.name || '', reason, by: A.me.name, at: Date.now(), active: true };
+  A.blocks.set(b.id, b); render();
+  try { await S.saveBlock(b); const list = (await S.recordsOf(sid)).filter(r => r.date === date && r.done && !r.removed && !r.id.startsWith('ack_')); await Promise.all(list.map(r => S.saveRecord({ ...r, done: false, by: A.me.name, updatedAt: Date.now() }))); toast('출석을 막았어요'); } catch (e) { A.blocks.delete(b.id); fail(e); render(); }
+}
+function freeBlock(date, sid) {
+  const b = blk(date, sid); if (!b) return; const n = { ...b, active: false, freedBy: A.me.name, freedAt: Date.now() };
+  A.blocks.set(b.id, n); render(); S.saveBlock(n).then(() => toast('출석을 풀었어요')).catch(e => { A.blocks.set(b.id, b); fail(e); render(); });
+}
+function blPopHtml() {
+  const p = A.blPop;
+  if (p.ask) return `<div class="back"><div class="card ed"><button id="bxX" class="edx" aria-label="창 닫기">✕</button><div class="edt">${dl(p.date)} ${esc(p.sname)} 출석 막기</div>${p.err ? `<p class="err">${esc(p.err)}</p>` : ''}<label class="field" style="margin-top:8px">막는 이유<input id="bxR" placeholder="이유 입력"></label><button id="bxG" class="wide" style="margin:0;color:#c62828;border-color:#fecaca">막기</button></div></div>`;
+  const b = blk(p.date, p.sid); if (!b) { A.blPop = null; return ''; }
+  return `<div class="back"><div class="card ed"><button id="bxX" class="edx" aria-label="창 닫기">✕</button><div class="edt">${dl(p.date)} ${esc(b.sname)}</div><div class="meta" style="margin:6px 0">출석 불가예요.</div><div style="font-size:15px;line-height:1.5">사유: ${esc(b.reason)}</div><div class="meta" style="margin-top:4px">막은 사람: ${esc(b.by)} · 더보기나 메뉴의 출석 막기·풀기에서 풀 수 있어요.</div></div></div>`;
+}
+function bindBlPop() {
+  const $ = i => $root.querySelector(i), p = A.blPop; $('#bxX').onclick = () => { A.blPop = null; render(); };
+  if ($('#bxG')) $('#bxG').onclick = () => { const v = $('#bxR').value.trim(); if (!v) { p.err = '막는 이유를 입력해 주세요.'; return render(); } A.blPop = null; doBlock(p.date, p.sid, p.sname, p.tid, v); };
+}
+const seenN = () => { try { return JSON.parse(localStorage.getItem('bandi-seen-notices') || '[]'); } catch { return []; } };
+const liveN = () => { const t = TODAY(); return A.notices.filter(n => !n.off && n.from <= t && t <= n.to).sort((a, b) => b.at - a.at); };
+const popN = () => { if (A.ed || A.modal || A.delPop || A.bdPop || A.blPop) return null; const s = seenN(); return liveN().find(n => !s.includes(n.id) && !A.ntOff.has(n.id)) || null; };
+function ntPopHtml(n) { return `<div class="back"><div class="card ed"><button id="nxX" class="edx" aria-label="창 닫기">✕</button><div class="edt">공지사항</div><div style="font-size:15px;line-height:1.5;margin:8px 0;white-space:pre-wrap">${esc(n.text)}</div><div class="meta" style="margin-bottom:10px">${L.label(n.to)}까지 메뉴의 공지사항에서 다시 볼 수 있어요.</div><button id="nxO" class="wide p" style="margin:0">확인했어요</button></div></div>`; }
+function bindNtPop(n) { const $ = i => $root.querySelector(i); $('#nxX').onclick = () => { A.ntOff.add(n.id); render(); }; $('#nxO').onclick = () => { try { localStorage.setItem('bandi-seen-notices', JSON.stringify([...seenN(), n.id].slice(-100))); } catch { A.ntOff.add(n.id); } render(); }; }
+function noticesScreen() { const l = liveN(); return `${backBtn('공지사항')}<div class="card">${l.length ? l.map(n => `<div class="lr" style="padding:8px 0"><div style="font-weight:600;white-space:pre-wrap">${esc(n.text)}</div><div class="meta">${L.label(n.to)}까지</div></div>`).join('') : '<div class="meta">지금 공지가 없어요.</div>'}</div>`; }
+function bindNotices(r) { r.querySelector('#bk').onclick = () => go('menu'); }
+function ntWriteScreen() {
+  const t = TODAY(), l = A.notices.slice().sort((a, b) => b.at - a.at).slice(0, 20);
+  return `${backBtn('공지 쓰기')}${A.nErr ? `<p class="err">${esc(A.nErr)}</p>` : ''}<div class="card"><label class="field">내용<textarea id="nT" rows="3" style="width:100%;font:inherit;border:1px solid #cbd5e1;border-radius:12px;padding:10px" placeholder="예: 11/7 (토) 학생 이름 결재 없음"></textarea></label><div class="two"><label class="field">시작일<input id="nF" type="date" value="${t}"></label><label class="field">끝나는 날<input id="nE" type="date" value="${L.lastDay(L.monthOf(t))}"></label></div><button id="nG" class="wide p" style="margin:0">공지 올리기</button></div><div class="h">올린 공지</div><div class="card">${l.length ? l.map(n => { const on = !n.off && n.from <= t && t <= n.to; return `<div data-n="${esc(n.id)}" style="padding:8px 0;border-top:1px solid #edf1f6"><div style="font-weight:600;white-space:pre-wrap">${esc(n.text)}</div><div class="meta">${on ? '보이는 중' : n.off ? '내린 공지' : n.to < t ? '기간 끝남' : '시작 전'} · ${esc(n.by || '')}</div>${n.off ? '' : `<div class="two" style="margin-top:6px"><label class="field" style="margin:0">끝나는 날<input class="nEd" type="date" value="${esc(n.to)}"></label><button class="nOff" style="align-self:end;color:#c62828;border-color:#fecaca">공지 내리기</button></div>`}</div>`; }).join('') : '<div class="meta">올린 공지가 없어요.</div>'}</div>`;
+}
+function bindNtWrite(r) {
+  r.querySelector('#bk').onclick = () => { A.nErr = ''; go('menu'); };
+  r.querySelector('#nG').onclick = () => { const text = r.querySelector('#nT').value.trim(), from = r.querySelector('#nF').value, to = r.querySelector('#nE').value; A.nErr = ''; if (!text) A.nErr = '내용을 입력해 주세요.'; else if (!from || !to || from > to) A.nErr = '끝나는 날은 시작일보다 늦어야 해요.'; if (A.nErr) return render(); const id = S.newNoticeId(); try { localStorage.setItem('bandi-seen-notices', JSON.stringify([...seenN(), id].slice(-100))); } catch { A.ntOff.add(id); } document.activeElement?.blur?.(); S.saveNotice({ id, text, from, to, by: A.me.name, at: Date.now(), off: false }).then(() => toast('공지를 올렸어요')).catch(fail); };
+  r.querySelectorAll('[data-n]').forEach(el => { const n = A.notices.find(x => x.id === el.dataset.n), e = el.querySelector('.nEd'), o = el.querySelector('.nOff'); if (e) e.onchange = () => { if (e.value && e.value >= n.from) { e.blur(); S.saveNotice({ ...n, to: e.value }).then(() => toast('저장되었어요 ✓')).catch(fail); } }; if (o) o.onclick = () => { A.modal = { text: '이 공지를 내릴까요?', yes: '공지 내리기', run: () => S.saveNotice({ ...n, off: true }).catch(fail) }; render(); }; });
+}
+function blocksScreen() {
+  const all = A.students.filter(s => !s.endDate || s.endDate >= TODAY()), who = s => A.teachers.find(x => x.id === L.ownerAt(s, '9999-12-31'))?.name || '';
+  if (!all.some(s => s.id === A.blS)) A.blS = all[0]?.id || '';
+  const on = [...A.blocks.values()].filter(b => b.active).sort((a, b) => a.date < b.date ? -1 : 1), off = [...A.blocks.values()].filter(b => !b.active).sort((a, b) => b.freedAt - a.freedAt).slice(0, 5);
+  return `${backBtn('출석 막기·풀기')}${A.blE ? `<p class="err">${esc(A.blE)}</p>` : ''}<div class="card"><div class="meta" style="margin-bottom:8px">모든 선생님이 쓸 수 있어요. 막으면 그날 출석은 자동으로 취소돼요.</div><div class="two"><label class="field">날짜<input id="bD" type="date" value="${esc(A.blD || TODAY())}"></label><label class="field">학생<select id="bS">${all.map(s => `<option value="${esc(s.id)}" ${s.id === A.blS ? 'selected' : ''}>${esc(s.name)} · ${esc(who(s))}</option>`).join('')}</select></label></div><label class="field">막는 이유<input id="bR" placeholder="이유 입력" value="${esc(A.blR || '')}"></label><button id="bG" class="wide" style="margin:0;color:#c62828;border-color:#fecaca">출석 막기</button></div><div class="h">지금 막혀 있는 날</div><div class="card">${on.length ? on.map(b => `<div class="lr" style="padding:8px 0;display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="min-width:0"><div style="font-weight:600">${dl(b.date)} · ${esc(b.sname)}</div><div class="meta">사유: ${esc(b.reason)} · 막은 사람: ${esc(b.by)}</div></div><button class="bFr" data-d="${esc(b.date)}" data-s="${esc(b.sid)}" style="flex:none;padding:0 10px">출석 풀기</button></div>`).join('') : '<div class="meta">막혀 있는 날이 없어요.</div>'}</div><div class="h">최근에 풀린 날</div><div class="card">${off.length ? off.map(b => `<div style="padding:6px 0"><div style="font-weight:600">${dl(b.date)} · ${esc(b.sname)}</div><div class="meta">푼 사람: ${esc(b.freedBy || '')}</div></div>`).join('') : '<div class="meta">아직 풀린 날이 없어요.</div>'}</div>`;
+}
+function bindBlocks(r) {
+  r.querySelector('#bk').onclick = () => { A.blE = ''; go('menu'); };
+  const pull = () => { A.blD = r.querySelector('#bD').value; A.blS = r.querySelector('#bS').value; A.blR = r.querySelector('#bR').value; };
+  r.querySelector('#bD').onchange = pull; r.querySelector('#bS').onchange = pull; r.querySelector('#bR').oninput = pull;
+  r.querySelector('#bG').onclick = () => { pull(); const st = A.students.find(s => s.id === A.blS), v = (A.blR || '').trim(); A.blE = ''; if (!A.blD) A.blE = '날짜를 골라 주세요.'; else if (!st) A.blE = '학생이 없어요.'; else if (!v) A.blE = '막는 이유를 입력해 주세요.'; else if (blk(A.blD, st.id)) A.blE = '이미 막혀 있는 날이에요.'; if (A.blE) return render(); A.blR = ''; document.activeElement?.blur?.(); doBlock(A.blD, st.id, st.name, L.ownerAt(st, A.blD), v); };
+  r.querySelectorAll('.bFr').forEach(b => b.onclick = () => freeBlock(b.dataset.d, b.dataset.s));
+}
 function boardHtml(d, m) {
   const ids = books().map(b => b.id), rows = [];
   ids.forEach(id => A.students.filter(s => L.ownerAt(s, d) === id && !(s.endDate && s.endDate < m + '-01')).forEach(s => {
     const cs = L.cardsFor(d, id, A.students, recs()).filter(c => c.sid === s.id && !c.removed), staff = cs[0]?.staff || L.staffAt(s, d) || books().find(b => b.id === id)?.name || '', lim = s.limit || 66, rem = Math.max(lim - L.cumulative(recs(), s.id, d), 0), un = cs.find(c => !c.done);
-    rows.push(`<tr data-fs="${esc(s.id)}" data-bk="${id}" class="${id === bkId() && A.filter === s.id ? 'on' : ''}"><td>${esc(staff)}</td><td>${sn(s.id, s.name)}</td><td class="cv">${L.fmt(rem)}</td><td>${!cs.length ? '<span class="no">일정 없음</span>' : un ? `<button class="bdo" data-bo="${esc(un.id)}" data-own="${id}">출석</button>` : `<button class="bok" data-ok="${esc(cs[cs.length - 1].id)}" data-own="${id}" aria-label="${esc(s.name)} 출석 취소 또는 삭제">✓</button>`}</td></tr>`);
+    rows.push(`<tr data-fs="${esc(s.id)}" data-bk="${id}" class="${id === bkId() && A.filter === s.id ? 'on' : ''}"><td>${esc(staff)}</td><td>${sn(s.id, s.name)}</td><td class="cv">${L.fmt(rem)}</td><td>${blk(d, s.id) ? `<button class="blkW bgb" data-d="${esc(d)}" data-s="${esc(s.id)}">불가</button>` : !cs.length ? '<span class="no">일정 없음</span>' : un ? `<button class="bdo" data-bo="${esc(un.id)}" data-own="${id}">출석</button>` : `<button class="bok" data-ok="${esc(cs[cs.length - 1].id)}" data-own="${id}" aria-label="${esc(s.name)} 출석 취소 또는 삭제">✓</button>`}</td></tr>`);
   }));
   return `<div class="card cg bdw"><div class="bdh"><b>학생 현황 · ${dl(d)}</b><button id="bdF" type="button">${A.bdFold ? '펼치기' : '접기'}</button></div>${rows.length ? `<div class="bdb ${A.bdFold ? 'fold' : ''}"><table class="bd"><thead><tr><th>제공인력</th><th>학생</th><th>잔여</th><th>오늘</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>` : '<div class="meta">아직 학생이 없어요. 메뉴의 시간표와 학생 관리에서 추가해 주세요.</div>'}</div>`;
 }
@@ -140,11 +190,11 @@ function mainScreen() {
   <div class="h">${+m.slice(5)}월 기록</div><div class="field"><input id="mp" type="month" aria-label="달 고르기" value="${m}"></div>${fchips}<div class="mo">${bulkBtns()}</div><div class="card">${log.length || osum.length ? osum.filter(x => x.phase === '이전').map(sumRow).join('') + log.map(logRow).join('') + osum.filter(x => x.phase === '이후').map(sumRow).join('') : '<div class="meta">아직 출석한 기록이 없어요.</div>'}</div>`;
   return `<div class="cols t-${A.tab || 'a'}"><section class="col ca">${left}</section><section class="col cb">${right}</section></div>`;
 }
-const pinCard = (s, pcOnly) => `<div class="card ${pcOnly ? 'pcpin' : ''}"><div class="rw"><div style="min-width:0"><div class="nm"><span class="ckb"></span>${sn(s.id, s.name)}</div><div class="meta">이 날은 시간표가 없어요.</div></div><div class="ac"><button class="pinEd wd" data-pin="${esc(s.id)}">시간·결제 바꾸기</button></div></div></div>`;
+const pinCard = (s, pcOnly) => `<div class="card ${pcOnly ? 'pcpin' : ''}"><div class="rw"><div style="min-width:0"><div class="nm"><span class="ckb"></span>${sn(s.id, s.name)}</div><div class="meta">${blk(A.cur, s.id) ? '출석 불가예요.' : '이 날은 시간표가 없어요.'}</div></div><div class="ac">${blk(A.cur, s.id) ? `<button class="blkW bgr wd" data-d="${esc(A.cur)}" data-s="${esc(s.id)}">불가</button>` : `<button class="pinEd wd" data-pin="${esc(s.id)}">시간·결제 바꾸기</button>`}</div></div></div>`;
 function card(c) {
-  const k = PC[c.pay] || PC.정상, tot = L.cumulative(recs(), c.sid, A.cur);
+  const k = PC[c.pay] || PC.정상, tot = L.cumulative(recs(), c.sid, A.cur), bl = blk(c.date, c.sid), pt = bl ? '<span style="color:#475569">출석 불가예요</span>' : `<span style="color:${k[1]}">${c.pay}결제</span>`;
   
-  return `<div class="card ${c.done ? 'done' : ''}" data-c="${esc(c.id)}"><div class="rw"><div style="min-width:0"><div class="nm"><span class="ckb">${c.done ? CK : ''}</span>${sn(c.sid, c.sname)}</div><div class="meta pc2">${esc(c.s)}~${esc(c.e)} · ${esc(c.staff || bkName())} · <span style="color:${k[1]}">${c.pay}결제</span><br>당일 ${L.fmt(c.h)} · 누적 <b>${L.fmt(tot)}</b></div><div class="meta mo2">${esc(c.s)}~${esc(c.e)} · ${esc(c.staff || bkName())} · <span style="color:${k[1]}">${c.pay}결제</span><br>당일 ${L.fmt(c.h)} · 누적 <b>${L.fmt(tot)}</b></div></div><div class="ac"><button class="chk ${c.done ? '' : 'p'}">${c.done ? '취소' : '출석'}</button><button class="cx" aria-label="이 날 일정 지우기"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button><button class="tog wd">시간·결제 바꾸기</button></div></div>${c.pay === '소급' && !c.reason ? '<div class="err" style="margin:8px 0 0">소급 사유를 골라 주세요.</div>' : ''}</div>`;
+  return `<div class="card ${c.done ? 'done' : ''}" data-c="${esc(c.id)}"><div class="rw"><div style="min-width:0"><div class="nm"><span class="ckb">${c.done ? CK : ''}</span>${sn(c.sid, c.sname)}</div><div class="meta pc2">${esc(c.s)}~${esc(c.e)} · ${esc(c.staff || bkName())} · ${pt}<br>당일 ${L.fmt(c.h)} · 누적 <b>${L.fmt(tot)}</b></div><div class="meta mo2">${esc(c.s)}~${esc(c.e)} · ${esc(c.staff || bkName())} · ${pt}<br>당일 ${L.fmt(c.h)} · 누적 <b>${L.fmt(tot)}</b></div></div><div class="ac">${bl ? `<button class="blkW bgr" data-d="${esc(c.date)}" data-s="${esc(c.sid)}">불가</button>` : `<button class="chk ${c.done ? '' : 'p'}">${c.done ? '취소' : '출석'}</button>`}<button class="cx" aria-label="이 날 일정 삭제"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button><div class="ddw"><button class="more wd" aria-expanded="${A.more === c.id}">더보기 ▾</button>${A.more === c.id ? `<div class="ddm"><button class="tog" ${bl ? 'disabled' : ''}>시간·결제 바꾸기</button><button class="mbl" ${bl ? 'disabled' : ''}>출석 막기</button><button class="mfr" ${bl ? '' : 'disabled'}>출석 풀기</button></div>` : ''}</div></div></div>${c.pay === '소급' && !c.reason ? '<div class="err" style="margin:8px 0 0">소급 사유를 골라 주세요.</div>' : ''}</div>`;
 }
 const dl = d => `${L.label(d)} (${L.WD[L.weekday(d)]})`;
 function openEd(c, pay) {
@@ -192,6 +242,7 @@ function saveEd() {
     }
   }
   if (!x.sid) return fail2('학생을 먼저 추가해 주세요.');
+  if (blk(x.date, x.sid)) return fail2(`${x.sname} 학생은 ${dl(x.date)} 출석 불가예요. 먼저 출석을 풀어 주세요.`);
   if (x.pay === '소급' && !x.reason) return fail2('소급 사유를 골라 주세요.');
   if (x.pay === '소급' && x.reason === '기타' && !x.etc.trim()) return fail2('기타 사유를 입력해 주세요.');
   if (!ack && (!x.s || !x.e || x.s >= x.e)) return fail2('종료 시간은 시작 시간보다 늦어야 해요.');
@@ -237,6 +288,7 @@ function logRow(r) {
   return `<div class="log" data-r="${esc(r.id)}"><div class="lh"><span style="color:${hol ? '#c62828' : wd === 6 ? '#2563eb' : 'inherit'}">${L.md(r.date)} (${L.WD[wd]})</span> ${sn(r.sid, r.sname)} · ${esc(r.staff || '')}</div><div class="meta">당일 ${L.fmt(r.h)} · 누적 <b>${L.fmt(L.cumulative(recs(), r.sid, r.date))}</b> · <span style="color:${PC[r.pay][1]};font-weight:600;${r.pay === '인정' ? `background:${PC[r.pay][0]};border:1px solid ${PC[r.pay][1]}66;border-radius:7px;padding:1px 7px` : ''}">${r.pay}결제</span></div>${r.pay === '소급' ? `<button class="lre" aria-label="소급 사유 바꾸기">${esc((r.reason === '기타' ? r.etc : r.reason) || '사유를 골라 주세요')}</button>` : ''}${r.by && r.by !== r.staff ? `<div class="by">입력 ${esc(r.by)}</div>` : ''}${`<div class="lg"><select class="lp" aria-label="결제구분" style="background-color:${PC[r.pay][0]};color:${PC[r.pay][1]};border-color:${PC[r.pay][1]}66;font-weight:700">${L.ALL_PAYS.map(p => `<option value="${p}" ${p === r.pay ? 'selected' : ''}>${p}결제</option>`).join('')}</select><select class="lhh" aria-label="시간">${Array.from({ length: max + 1 }, (_, i) => `<option value="${i}" ${i === w ? 'selected' : ''}>${i}시간</option>`).join('')}</select><select class="lmm" aria-label="분"><option value="0" ${mm ? '' : 'selected'}>0분</option><option value="30" ${mm ? 'selected' : ''} ${w === max ? 'disabled' : ''}>30분</option></select><button class="lc cx" aria-label="기록 삭제"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></button></div>`}</div>`;
 }
 function saveCard(c, patch, own) {
+  if (patch.done && blk(c.date, c.sid)) { toast('출석 불가인 날이에요.'); return Promise.resolve(); }
   const { saved, ...base } = c, tid = own || bkId(), tname = A.teachers.find(x => x.id === tid)?.name || bkName(), staff = base.staff || tname;
   return S.saveRecord({ ...base, staff, tid, tname, by: A.me.name, updatedAt: Date.now(), bulk: false, ...patch }).catch(fail);
 }
@@ -257,6 +309,8 @@ function bindMain(r) {
   const gp = r.querySelector('#goPast'); if (gp) gp.onclick = () => go(L.pendingDates(TODAY(), bkId(), A.students, recs(), [L.monthOf(TODAY())])[0].date);
   const mp = r.querySelector('#mp'); mp.onchange = () => { if (mp.value) { mp.blur(); go(mp.value + '-01'); } };
   r.querySelectorAll('[data-fs]').forEach(b => b.onclick = () => { const own = b.dataset.bk; if (own !== bkId()) { setBook(own); A.filter = b.dataset.fs; } else A.filter = A.filter === b.dataset.fs ? '전체' : b.dataset.fs; syncMonths(); render(); });
+  r.querySelectorAll('.blkW').forEach(b => b.onclick = e => { e.stopPropagation(); A.blPop = { why: true, date: b.dataset.d, sid: b.dataset.s }; render(); });
+  r.addEventListener('click', e => { if (A.more && !e.target.closest('.ddw')) { A.more = ''; render(); } });
   r.querySelectorAll('.bok').forEach(b => b.onclick = e => { e.stopPropagation(); A.bdPop = { date: A.cur, id: b.dataset.ok, own: b.dataset.own, ask: false }; render(); });
   r.querySelectorAll('.bdo').forEach(b => b.onclick = e => { e.stopPropagation(); const own = b.dataset.own, c = L.cardsFor(A.cur, own, A.students, recs()).find(x => x.id === b.dataset.bo); if (!c) return; if (c.pay === '소급' && (!c.reason || (c.reason === '기타' && !c.etc?.trim()))) { setBook(own); openEd(c); A.ed.err = '소급 사유를 입력해 주세요.'; return render(); } saveCard(c, { done: true }, own); toast(`${c.sname} 출석했어요`); });
   const bdF = r.querySelector('#bdF'); if (bdF) bdF.onclick = () => { A.bdFold = !A.bdFold; render(); };
@@ -267,9 +321,10 @@ function bindMain(r) {
     const c = cardsNow().find(x => x.id === el.dataset.c); if (!c) return;
     const q = s => el.querySelector(s);
     if (c.removed) return;
-    q('.chk').onclick = () => { if (!c.done && c.pay === '소급' && (!c.reason || (c.reason === '기타' && !c.etc?.trim()))) { openEd(c); A.ed.err = '소급 사유를 입력해 주세요.'; return render(); } saveCard(c, { done: !c.done }); };
-    q('.tog').onclick = () => openEd(c);
-    q('.cx').onclick = () => { A.modal = { text: `${c.sname} ${L.label(c.date)} 일정을 지울까요? 다음 주 시간표는 그대로 나와요.`, yes: '지우기', run: () => c.custom ? S.removeRecord(c.id).catch(fail) : saveCard(c, { removed: true, done: false }) }; render(); };
+    if (q('.chk')) q('.chk').onclick = () => { if (!c.done && c.pay === '소급' && (!c.reason || (c.reason === '기타' && !c.etc?.trim()))) { openEd(c); A.ed.err = '소급 사유를 입력해 주세요.'; return render(); } saveCard(c, { done: !c.done }); };
+    q('.more').onclick = () => { A.more = A.more === c.id ? '' : c.id; render(); };
+    if (q('.tog')) { q('.tog').onclick = () => { A.more = ''; openEd(c); }; q('.mbl').onclick = () => { A.more = ''; A.blPop = { ask: true, date: c.date, sid: c.sid, sname: c.sname, tid: c.tid || bkId(), err: '' }; render(); }; q('.mfr').onclick = () => { A.more = ''; freeBlock(c.date, c.sid); }; }
+    q('.cx').onclick = () => { A.modal = { text: `${c.sname} ${L.label(c.date)} 삭제하시겠습니까? 다음 주 시간표는 그대로 나와요.`, yes: '삭제', run: () => c.custom ? S.removeRecord(c.id).catch(fail) : saveCard(c, { removed: true, done: false }) }; render(); };
   });
   r.querySelectorAll('[data-a]').forEach(el => {
     const id = el.dataset.a, st = A.students.find(s => s.id === el.dataset.s), rec = A.rec.get(id), q = s => el.querySelector(s), m = L.monthOf(A.cur);
@@ -281,6 +336,7 @@ function bindMain(r) {
       const d = q('.ad').value, h = readHours(q('.hf')), f = A.ack[id];
       if (!d || L.monthOf(d) !== m) { f.err = '이 달 안의 날짜를 골라 주세요.'; return render(); }
       if (h.error) { f.err = h.error; return render(); }
+      if (blk(d, st.id)) { f.err = `${dl(d)}은 출석 불가예요. 먼저 출석을 풀어 주세요.`; return render(); }
       delete A.ack[id]; document.activeElement?.blur?.();
       S.saveRecord({ id, date: d, month: m, sid: st.id, sname: st.name, tid: bkId(), tname: bkName(), by: A.me.name, staff: L.staffAt(st, d) || bkName(), s: '', e: '', h: h.h, pay: '인정', reason: '', etc: '', done: true, updatedAt: Date.now() }).catch(fail); render();
     };
@@ -296,7 +352,7 @@ function bindMain(r) {
 }
 const it = (id, name, icon, c, b) => `<button class="it" id="${id}" style="color:${c}"><span class="ic" style="background:${b}"><svg viewBox="0 0 24 24" aria-hidden="true">${SVG[icon]}</svg></span><span>${name}</span><span aria-hidden="true" style="color:#94a3b8">›</span></button>`;
 function menuScreen() {
-  return `${A.msg ? `<div class="ok">${esc(A.msg)}</div>` : ''}<div class="group">내 출결부</div><div class="list">${it('mMain', '출결부로 돌아가기', 'cal', '#2563eb', '#eaf2ff')}${it('mSch', '시간표와 학생 관리', 'clock', '#4f46e5', '#eef2ff')}${it('mStf', '제공인력 변경', 'swap', '#4f46e5', '#eef2ff')}${it('mPeer', '동료 출결부 보기', 'users', '#d98a1f', '#fff8e8')}${canAll() ? it('mAll', '전체 현황', 'file', '#2563eb', '#eaf2ff') : ''}${it('mPw', '내 암호 바꾸기', 'key', '#475569', '#f1f5f9')}</div><div class="group">파일과 설치</div><div class="list">${it('mXl', '엑셀 다운로드', 'file', '#16a34a', '#ecfdf5')}${it('mApp', '앱 추가', 'phone', '#0e7490', '#ecfeff')}</div>${A.me.boss ? `<div class="group">관리자 메뉴</div><div class="list">${it('mHand', '출결부 인계', 'swap', '#6d3fc4', '#f5f0ff')}${it('mTe', '선생님 관리', 'cog', '#6d3fc4', '#f5f0ff')}</div>` : ''}<div class="group"></div><div class="list">${it('mOut', '로그아웃', 'out', '#64748b', '#f1f5f9')}</div>`;
+  return `${A.msg ? `<div class="ok">${esc(A.msg)}</div>` : ''}<div class="group">내 출결부</div><div class="list">${it('mMain', '출결부로 돌아가기', 'cal', '#2563eb', '#eaf2ff')}${it('mNt', `공지사항${liveN().length ? ` (${liveN().length})` : ''}`, 'file', '#2563eb', '#eaf2ff')}${it('mBl', '출석 막기·풀기', 'cal', '#c62828', '#fdecea')}${it('mSch', '시간표와 학생 관리', 'clock', '#4f46e5', '#eef2ff')}${it('mStf', '제공인력 변경', 'swap', '#4f46e5', '#eef2ff')}${it('mPeer', '동료 출결부 보기', 'users', '#d98a1f', '#fff8e8')}${canAll() ? it('mAll', '전체 현황', 'file', '#2563eb', '#eaf2ff') : ''}${it('mPw', '내 암호 바꾸기', 'key', '#475569', '#f1f5f9')}</div><div class="group">파일과 설치</div><div class="list">${it('mXl', '엑셀 다운로드', 'file', '#16a34a', '#ecfdf5')}${it('mApp', '앱 추가', 'phone', '#0e7490', '#ecfeff')}</div>${A.me.boss ? `<div class="group">관리자 메뉴</div><div class="list">${it('mNw', '공지 쓰기', 'file', '#2563eb', '#eaf2ff')}${it('mHand', '출결부 인계', 'swap', '#6d3fc4', '#f5f0ff')}${it('mTe', '선생님 관리', 'cog', '#6d3fc4', '#f5f0ff')}</div>` : ''}<div class="group"></div><div class="list">${it('mOut', '로그아웃', 'out', '#64748b', '#f1f5f9')}</div>`;
 }
 const go = s => { A.screen = s; A.msg = ''; window.scrollTo(0, 0); render(); };
 const openTeachers = () => { A.code = null; go('teachers'); S.getJoinCode().then(c => { A.code = c; soft(); }).catch(fail); };
@@ -316,7 +372,7 @@ function installAction() {
 }
 function bindMenu(r) {
   const on = (i, f) => { const e = r.querySelector('#' + i); if (e) e.onclick = f; };
-  on('mMain', () => go('main')); on('mSch', () => go('schedule')); on('mStf', openStaff); on('mPeer', () => go('peers')); on('mAll', () => { A.allM = L.monthOf(TODAY()); A.allF = ''; A.screen = 'overview'; syncMonths(); go('overview'); }); on('mPw', () => go('password')); on('mHand', () => go('handover')); on('mTe', openTeachers);
+  on('mMain', () => go('main')); on('mSch', () => go('schedule')); on('mStf', openStaff); on('mPeer', () => go('peers')); on('mNt', () => go('notices')); on('mBl', () => { A.blE = ''; go('blocks'); }); on('mNw', () => { A.nErr = ''; go('ntwrite'); }); on('mAll', () => { A.allM = L.monthOf(TODAY()); A.allF = ''; A.screen = 'overview'; syncMonths(); go('overview'); }); on('mPw', () => go('password')); on('mHand', () => go('handover')); on('mTe', openTeachers);
   on('mXl', () => downloadXlsx(bkId(), bkName())); on('mApp', installAction);
   on('mOut', () => { A.modal = { text: '로그아웃할까요? 다음에 이름과 암호를 다시 입력해야 해요.', yes: '로그아웃', run: () => S.logout() }; render(); });
 }
@@ -487,8 +543,8 @@ function render() {
   if (A.phase === 'error') { $root.innerHTML = `<div class="auth"><div class="card"><div class="err">${esc(A.err)}</div><button id="rt" class="wide" style="margin:0">다시 시도</button></div></div>`; $root.querySelector('#rt').onclick = () => location.reload(); return; }
   if (A.phase === 'setup' || A.phase === 'auth') { const vals = {}; ['n', 'p', 'c'].forEach(i => { const e = $root.querySelector('#' + i); if (e) vals[i] = e.value; }); $root.innerHTML = authScreen(); Object.entries(vals).forEach(([i, v]) => { const e = $root.querySelector('#' + i); if (e) e.value = v; }); return bindAuth($root); }
   if (A.phase === 'suspended') { $root.innerHTML = suspendedScreen(); $root.querySelector('#so').onclick = () => S.logout(); return; }
-  const scr = { main: [mainScreen, bindMain], menu: [menuScreen, bindMenu], schedule: [scheduleScreen, bindSchedule], staff: [staffScreen, bindStaff], peers: [peersScreen, bindPeers], password: [passwordScreen, bindPassword], handover: [handoverScreen, bindHandover], teachers: [teachersScreen, bindTeachers], overview: [overviewScreen, bindOverview] }[A.screen === 'overview' && !canAll() ? 'main' : A.screen];
-  $root.innerHTML = header() + `<main id="m" class="${A.screen === 'main' ? '' : 'narrow'}">${scr[0]()}</main><nav class="mtabs">${[['a', '출석'], ['b', '기록'], ['menu', '메뉴']].map(([k, t]) => `<button data-tab="${k}" id="${k === 'menu' ? 'tMenu' : 'tab' + k}" class="${(k === 'menu' ? A.screen !== 'main' : A.screen === 'main' && (A.tab || 'a') === k) ? 'on' : ''}">${t}</button>`).join('')}</nav>` + (A.ed ? editorHtml() : '') + (A.delPop ? delHtml() : '') + (A.bdPop ? bdPopHtml() : '') + (A.modal ? modalHtml() : '');
+  const scr = { main: [mainScreen, bindMain], menu: [menuScreen, bindMenu], schedule: [scheduleScreen, bindSchedule], staff: [staffScreen, bindStaff], peers: [peersScreen, bindPeers], password: [passwordScreen, bindPassword], handover: [handoverScreen, bindHandover], teachers: [teachersScreen, bindTeachers], overview: [overviewScreen, bindOverview], notices: [noticesScreen, bindNotices], blocks: [blocksScreen, bindBlocks], ntwrite: [ntWriteScreen, bindNtWrite] }[(A.screen === 'overview' && !canAll()) || (A.screen === 'ntwrite' && !A.me.boss) ? 'main' : A.screen];
+  $root.innerHTML = header() + `<main id="m" class="${A.screen === 'main' ? '' : 'narrow'}">${scr[0]()}</main><nav class="mtabs">${[['a', '출석'], ['b', '기록'], ['menu', '메뉴']].map(([k, t]) => `<button data-tab="${k}" id="${k === 'menu' ? 'tMenu' : 'tab' + k}" class="${(k === 'menu' ? A.screen !== 'main' : A.screen === 'main' && (A.tab || 'a') === k) ? 'on' : ''}">${t}</button>`).join('')}</nav>` + (A.ed ? editorHtml() : '') + (A.delPop ? delHtml() : '') + (A.bdPop ? bdPopHtml() : '') + (A.blPop ? blPopHtml() : '') + (popN() ? ntPopHtml(popN()) : '') + (A.modal ? modalHtml() : '');
   const main = $root.querySelector('#m'); scr[1](main);
   $root.querySelector('#mb').onclick = () => { A.screen = A.screen === 'main' ? 'menu' : 'main'; A.msg = ''; scrollTo(0, 0); render(); };
   $root.querySelector('#qPeer').onclick = () => go('peers');
@@ -500,6 +556,8 @@ function render() {
   $root.querySelector('#qOut').onclick = () => { A.modal = { text: '로그아웃할까요? 다음에 이름과 암호를 다시 입력해야 해요.', yes: '로그아웃', run: () => S.logout() }; render(); };
   if (A.ed) bindEd();
   if (A.bdPop) bindBdPop();
+  if (A.blPop) bindBlPop();
+  const nP = popN(); if (nP && $root.querySelector('#nxO')) bindNtPop(nP);
   if (A.delPop) { $root.querySelector('#dpN').onclick = () => { A.delPop = null; render(); }; $root.querySelectorAll('.dpY').forEach(b => b.onclick = () => { const x = A.rec.get(b.dataset.r); A.delPop = null; if (x) dropRec(x).then(() => toast('삭제했어요')).catch(fail); render(); }); }
   if (A.modal) { $root.querySelector('#mn').onclick = () => { A.modal = null; render(); }; $root.querySelector('#my').onclick = async () => { const f = A.modal.run; A.modal = null; render(); await f?.(); }; }
   window.scrollTo(0, y);
@@ -524,6 +582,8 @@ async function afterAuth() {
   if (me.suspended || me.active === false) { A.phase = 'suspended'; return render(); }
   A.me = me; A.phase = 'app'; A.screen = 'main'; A.cur = TODAY(); A.mon = L.mondayOf(A.cur);
   A.unsub.push(S.subTeachers(l => { A.teachers = l.sort((a, b) => a.name < b.name ? -1 : 1); const m = l.find(t => t.id === A.me?.id); if (m) { if (!m.active || m.uid !== A.uid) { A.phase = 'suspended'; stopSubs(); return render(); } A.me = m; } soft(); }, connErr));
+  A.unsub.push(S.subBlocks(l => { A.blocks = new Map(l.map(b => [b.id, b])); soft(); }, connErr));
+  A.unsub.push(S.subNotices(l => { A.notices = l; soft(); }, connErr));
   A.unsub.push(S.subStudents(l => { A.students = l.sort((a, b) => a.name < b.name ? -1 : 1); soft(); }, connErr));
   syncMonths(); render();
 }
