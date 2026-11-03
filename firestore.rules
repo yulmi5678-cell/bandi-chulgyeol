@@ -51,7 +51,7 @@ service cloud.firestore {
       allow read: if isActive();
       allow create: if canBook(request.resource.data.ownerTid);
       allow update: if canBook(resource.data.ownerTid) || isBoss();
-      allow delete: if false;
+      allow delete: if canBook(resource.data.ownerTid) || isBoss();
     }
 
     match /records/{rid} {
